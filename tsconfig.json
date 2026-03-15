@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@renderer/*": ["renderer/src/*"]
+    },
+
+    "types": [
+      "electron-vite/node",
+      "react",
+      "react-dom"
+    ]
+  },
+
+  "include": [
+    "electron",
+    "preload",
+    "renderer",
+    "renderer/vite.config.ts"
+  ]
+}
