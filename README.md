@@ -32,3 +32,9 @@ npm run build:dev
 ````
 
 
+```shell
+conda create -n yolk python=3.11
+conda activate yolk
+```
+
+

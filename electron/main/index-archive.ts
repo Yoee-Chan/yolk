@@ -1,15 +1,17 @@
 import {app, BrowserWindow, ipcMain} from 'electron'
 import path from 'path'
-import {spawn} from 'child_process'
 import {is} from '@electron-toolkit/utils'
+import {spawn} from 'child_process'
 
 function getPythonCommand() {
     if (!app.isPackaged) {
+        // dev 模式：直接运行 python agent.py
         return {
             command: 'python',
             args: [path.join(process.cwd(), 'python/agent.py')]
         }
     } else {
+        // prod 模式：运行打包后的 agent.exe
         return {
             command: path.join(process.resourcesPath, 'agent.exe'),
             args: []
@@ -40,20 +42,14 @@ app.whenReady().then(() => {
     ipcMain.on('run-python', (event, args) => {
         const {command, args: baseArgs} = getPythonCommand()
 
-        const py = spawn(command, [...baseArgs, JSON.stringify(args)], {
-            cwd: process.cwd()
-        })
+        const py = spawn(command, [...baseArgs, JSON.stringify(args)])
 
         py.stdout.on('data', data => {
-            event.sender.send('python-stream', data.toString())
+            event.sender.send('python-result', data.toString())
         })
 
         py.stderr.on('data', err => {
             event.sender.send('python-error', err.toString())
-        })
-
-        py.on('close', code => {
-            event.sender.send('python-exit', code)
         })
     })
 })

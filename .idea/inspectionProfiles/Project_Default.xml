@@ -1,0 +1,53 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="false" level="WARNING" enabled_by_default="false">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pydantic" />
+          <option value="openai" />
+          <option value="tenacity" />
+          <option value="pyyaml" />
+          <option value="loguru" />
+          <option value="numpy" />
+          <option value="datasets" />
+          <option value="fastapi" />
+          <option value="tiktoken" />
+          <option value="html2text" />
+          <option value="gymnasium" />
+          <option value="pillow" />
+          <option value="browsergym" />
+          <option value="uvicorn" />
+          <option value="unidiff" />
+          <option value="browser-use" />
+          <option value="googlesearch-python" />
+          <option value="baidusearch" />
+          <option value="duckduckgo_search" />
+          <option value="aiofiles" />
+          <option value="pydantic_core" />
+          <option value="colorama" />
+          <option value="playwright" />
+          <option value="docker" />
+          <option value="pytest" />
+          <option value="pytest-asyncio" />
+          <option value="mcp" />
+          <option value="httpx" />
+          <option value="tomli" />
+          <option value="boto3" />
+          <option value="requests" />
+          <option value="beautifulsoup4" />
+          <option value="crawl4ai" />
+          <option value="huggingface-hub" />
+          <option value="setuptools" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="config.*" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
