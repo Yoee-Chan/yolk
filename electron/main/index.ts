@@ -1,7 +1,9 @@
 import {app, BrowserWindow, ipcMain} from 'electron'
 import path from 'path'
-import {spawn} from 'child_process'
+import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
+
+let py: ChildProcessWithoutNullStreams | null = null  //  正确类型
 
 function getPythonCommand() {
     if (!app.isPackaged) {
@@ -37,10 +39,11 @@ function createWindow() {
 app.whenReady().then(() => {
     createWindow()
 
+    //  启动 Python
     ipcMain.on('run-python', (event, args) => {
         const {command, args: baseArgs} = getPythonCommand()
 
-        const py = spawn(command, [...baseArgs, JSON.stringify(args)], {
+        py = spawn(command, [...baseArgs, JSON.stringify(args)], {
             cwd: process.cwd()
         })
 
@@ -54,6 +57,16 @@ app.whenReady().then(() => {
 
         py.on('close', code => {
             event.sender.send('python-exit', code)
+            py = null
         })
+    })
+
+    //  前端输入 → Python stdin
+    ipcMain.on('python-input', (event, data) => {
+        console.log('收到前端输入：', data)
+        event.sender.send('python-input-echo', JSON.stringify(data));
+        if (py && py.stdin.writable) {
+            py.stdin.write(JSON.stringify(data) + '\n')
+        }
     })
 })

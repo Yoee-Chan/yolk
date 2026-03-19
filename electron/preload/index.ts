@@ -24,5 +24,13 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('python-exit', (_, code) => {
             onExit(code)
         })
+
+    },
+    sendPythonInput: (data: any) => {
+        ipcRenderer.send('python-input', data)
+
+    },
+    onPythonInputEcho: (callback: (data: string) => void) => {
+        ipcRenderer.on('python-input-echo', (_, data) => callback(data));
     }
 })
