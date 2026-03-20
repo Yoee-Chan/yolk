@@ -97,4 +97,8 @@ conda activate yolk
 
 ## 文件组织结构
 
+## 前端的安装包
+```shell
+npm install react-router-dom
+```
 
