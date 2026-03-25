@@ -12,6 +12,7 @@ def get_base_dir():
         return sys._MEIPASS
     return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+
 BASE_DIR = get_base_dir()
 LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
 
@@ -43,10 +44,10 @@ async def model(msg: str):
 #         msg = args.get("msg", "")
 #     else:
 #         msg = "默认消息"
-    # print(json.dumps({"partial": "第一段"}, ensure_ascii=False), flush=True)
-    # print(json.dumps({"partial": "第二段"}, ensure_ascii=False), flush=True)
-    # print(json.dumps({"result": "最终结果"}, ensure_ascii=False), flush=True)
-    # asyncio.run(model(msg))
+# print(json.dumps({"partial": "第一段"}, ensure_ascii=False), flush=True)
+# print(json.dumps({"partial": "第二段"}, ensure_ascii=False), flush=True)
+# print(json.dumps({"result": "最终结果"}, ensure_ascii=False), flush=True)
+# asyncio.run(model(msg))
 # import asyncio, sys, json
 
 # agent.py
@@ -56,11 +57,13 @@ import asyncio
 
 pending_inputs = {}
 
+
 async def wait_for_input(req_id):
     loop = asyncio.get_event_loop()
     fut = loop.create_future()
     pending_inputs[req_id] = fut
     return await fut
+
 
 def handle_stdin():
     for line in sys.stdin:
@@ -68,6 +71,11 @@ def handle_stdin():
         req_id = msg["id"]
         if req_id in pending_inputs:
             pending_inputs[req_id].set_result(msg["data"])
+
+
+async def init_application(event):
+    pass
+
 
 async def main():
     for i in range(10):
@@ -91,8 +99,8 @@ async def main():
     print(json.dumps({"type": "stream", "text": f"你好，{name}！继续执行..."}))
     sys.stdout.flush()
 
+
 # 启动 stdin 监听
 loop = asyncio.get_event_loop()
 loop.run_in_executor(None, handle_stdin)
 loop.run_until_complete(main())
-

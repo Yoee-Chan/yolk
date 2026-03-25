@@ -46,6 +46,20 @@ conda create -n yolk python=3.11
 conda activate yolk
 ```
 
+## 核心功能
+1. UI界面setting页面可以配置MCP服务器，用户可以自由的配置自己的MCP SERVER
+2. UI界面Setting有一个页面给用户配置服务商的URL和密钥，也可以选择自己默认的aliyun
+3. 用户可以配置一个WorkSpace,默认位置是在桌面上，用户可以自己手动配置，并且用户可以配置子目录的权限（readonly or write）
+4. Setting页面可以查询到用户的软件，用户需要在这里给Agent对应的权限，然后Agent才能去操作软件
+5. 需要实现一个核心的功能，用户可以打开邮件然后写好对应的body以及title，给用户审核。
+6. Agent可以在WorkSpace里面操作文件，比如讲A文件的B列数据按照分组、聚合、提取的放到新的excel里面。
+
+### 风险等级(Setting里面配置)
+风险等级分为三类，默认分享等级为中级（medium）,前端有一个滑块，1为更灵活，5为模糊，10为精确.
+* 每个动作都确认
+* 只有高风险动作确认
+* LLM 自己决定什么时候问人类
+
 ## Episodic Memory Compression (EMC)记忆压缩
 
 **EMC记忆压缩** 接近人类记忆的压缩机制，按时间、主题、关键词组织，可以顺着线索还原当时的状态，不是简单的向量检索，而是结构化记忆。

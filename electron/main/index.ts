@@ -47,6 +47,9 @@ app.whenReady().then(() => {
             cwd: process.cwd()
         })
 
+        //send event to python init applicaiton.
+        py.stdin.write(JSON.stringify({event:"init_app"})+'\n')
+
         py.stdout.on('data', data => {
             event.sender.send('python-stream', data.toString())
         })

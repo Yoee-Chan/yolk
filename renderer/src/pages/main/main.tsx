@@ -1,15 +1,18 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import "../../css/main/main.css";
 
+import Setting, { ConfigState } from "../../component/Setting";
+import History, { Message } from "../../component/History";
 
 export default function MainPage() {
-    const [messages, setMessages] = useState([
-        {role: "user", content: "你好！"},
-        {role: "assistant", content: "你好，我是你的 AI 助手。"},
+    const [messages, setMessages] = useState<Message[]>([
+        { role: "user", content: "你好！" },
+        { role: "assistant", content: "你好，我是你的 AI 助手。" },
     ]);
 
     const [input, setInput] = useState("");
-    const [config, setConfig] = useState({
+
+    const [config, setConfig] = useState<ConfigState>({
         safetyLevel: "medium",
         provider: "openai",
         model: "gpt-4",
@@ -18,7 +21,7 @@ export default function MainPage() {
     const sendMessage = () => {
         if (!input.trim()) return;
 
-        const newMsg = {role: "user", content: input};
+        const newMsg: Message = { role: "user", content: input };
         setMessages([...messages, newMsg]);
 
         setInput("");
@@ -28,59 +31,8 @@ export default function MainPage() {
         <div className="layout">
             {/* 左侧 Sidebar */}
             <div className="sidebar">
-                {/* 配置区 */}
-                <div className="config">
-                    <h2>配置</h2>
-
-                    <label>安全等级</label>
-                    <select
-                        value={config.safetyLevel}
-                        onChange={(e) =>
-                            setConfig({...config, safetyLevel: e.target.value})
-                        }
-                    >
-                        <option value="low">低</option>
-                        <option value="medium">中</option>
-                        <option value="high">高</option>
-                    </select>
-
-                    <label>Token 厂商</label>
-                    <select
-                        value={config.provider}
-                        onChange={(e) =>
-                            setConfig({...config, provider: e.target.value})
-                        }
-                    >
-                        <option value="openai">OpenAI</option>
-                        <option value="deepseek">DeepSeek</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="local">本地模型</option>
-                    </select>
-
-                    <label>模型</label>
-                    <select
-                        value={config.model}
-                        onChange={(e) =>
-                            setConfig({...config, model: e.target.value})
-                        }
-                    >
-                        <option value="gpt-4">GPT‑4</option>
-                        <option value="gpt-4-mini">GPT‑4 Mini</option>
-                        <option value="deepseek-chat">DeepSeek Chat</option>
-                        <option value="claude-3">Claude 3</option>
-                    </select>
-                </div>
-
-                {/* 聊天记录 */}
-                <div className="history">
-                    <h2>聊天记录</h2>
-                    {messages.map((m, i) => (
-                        <div key={i} className="history-item">
-                            <strong>{m.role === "user" ? "你：" : "AI："}</strong>
-                            {m.content.slice(0, 20)}...
-                        </div>
-                    ))}
-                </div>
+                <Setting config={config} setConfig={setConfig} />
+                <History messages={messages} />
             </div>
 
             {/* 右侧聊天主区域 */}
