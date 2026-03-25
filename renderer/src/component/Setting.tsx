@@ -1,4 +1,6 @@
-import React from "react";
+import React from 'react';
+import {SearchOutlined} from '@ant-design/icons';
+import {Button, Flex} from 'antd';
 
 export interface ConfigState {
     safetyLevel: string;
@@ -11,48 +13,48 @@ interface ConfigProps {
     setConfig: (config: ConfigState) => void;
 }
 
-export default function Setting({ config, setConfig }: ConfigProps) {
+
+const items = [{
+    key: 'setting',
+    icon: <SearchOutlined/>,
+    label: '设置'
+},
+    {
+        key: 'prod',
+        icon: <SearchOutlined/>,
+        label: '任务编排'
+    },
+    {
+        key: 'found',
+        icon: <SearchOutlined/>,
+        label: '发现'
+    }]
+const handleClick = (item: string) => {
+    console.log("item", item)
+}
+
+export default function Setting({config, setConfig}: ConfigProps) {
     return (
         <div className="config">
-            <h2>配置</h2>
+            <div>
+                <h3>Yolk Assistant </h3>
+            </div>
 
-            <label>安全等级</label>
-            <select
-                value={config.safetyLevel}
-                onChange={(e) =>
-                    setConfig({ ...config, safetyLevel: e.target.value })
-                }
-            >
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
-            </select>
+            <Flex vertical gap="small" style={{width: '100%'}}>
 
-            <label>Token 厂商</label>
-            <select
-                value={config.provider}
-                onChange={(e) =>
-                    setConfig({ ...config, provider: e.target.value })
+                {
+                    items.map(item => (
+                        <Button icon={item.icon} type="text" iconPlacement="start" onClick={() => handleClick(item.key)}
+                                style={{justifyContent: 'flex-start'}}>
+                            {item.label}
+                        </Button>)
+                    )
                 }
-            >
-                <option value="openai">OpenAI</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="local">本地模型</option>
-            </select>
 
-            <label>模型</label>
-            <select
-                value={config.model}
-                onChange={(e) =>
-                    setConfig({ ...config, model: e.target.value })
-                }
-            >
-                <option value="gpt-4">GPT‑4</option>
-                <option value="gpt-4-mini">GPT‑4 Mini</option>
-                <option value="deepseek-chat">DeepSeek Chat</option>
-                <option value="claude-3">Claude 3</option>
-            </select>
+
+            </Flex>
+
+
         </div>
     );
 }
