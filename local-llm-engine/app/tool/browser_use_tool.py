@@ -246,7 +246,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "refresh":
                     await context.refresh_page()
-                    return ToolResult(output="Refreshed current page")
+                    return ToolResult(output="Refreshed current pages")
 
                 elif action == "web_search":
                     if not query:
@@ -384,7 +384,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     content = markdownify.markdownify(await page.content())
 
                     prompt = f"""\
-Your task is to extract the content of the page. You will be given a page and a goal, and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format.
+Your task is to extract the content of the pages. You will be given a pages and a goal, and you should extract all relevant information around this goal from the pages. If the goal is vague, summarize the pages. Respond in json format.
 Extraction goal: {goal}
 
 Page content:
@@ -403,11 +403,11 @@ Page content:
                                 "properties": {
                                     "extracted_content": {
                                         "type": "object",
-                                        "description": "The content extracted from the page according to the goal",
+                                        "description": "The content extracted from the pages according to the goal",
                                         "properties": {
                                             "text": {
                                                 "type": "string",
-                                                "description": "Text content extracted from the page",
+                                                "description": "Text content extracted from the pages",
                                             },
                                             "metadata": {
                                                 "type": "object",
@@ -438,10 +438,10 @@ Page content:
                         args = json.loads(response.tool_calls[0].function.arguments)
                         extracted_content = args.get("extracted_content", {})
                         return ToolResult(
-                            output=f"Extracted from page:\n{extracted_content}\n"
+                            output=f"Extracted from pages:\n{extracted_content}\n"
                         )
 
-                    return ToolResult(output="No content was extracted from the page.")
+                    return ToolResult(output="No content was extracted from the pages.")
 
                 # Tab management actions
                 elif action == "switch_tab":

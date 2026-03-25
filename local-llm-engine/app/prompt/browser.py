@@ -29,9 +29,9 @@ Common action sequences:
 - Form filling: [{{"input_text": {{"index": 1, "text": "username"}}}}, {{"input_text": {{"index": 2, "text": "password"}}}}, {{"click_element": {{"index": 3}}}}]
 - Navigation and extraction: [{{"go_to_url": {{"url": "https://example.com"}}}}, {{"extract_content": {{"goal": "extract the names"}}}}]
 - Actions are executed in the given order
-- If the page changes after an action, the sequence is interrupted and you get the new state.
-- Only provide the action sequence until an action which changes the page state significantly.
-- Try to be efficient, e.g. fill forms at once, or chain actions where nothing changes on the page
+- If the pages changes after an action, the sequence is interrupted and you get the new state.
+- Only provide the action sequence until an action which changes the pages state significantly.
+- Try to be efficient, e.g. fill forms at once, or chain actions where nothing changes on the pages
 - only use multiple actions if it makes sense.
 
 3. ELEMENT INTERACTION:
@@ -40,12 +40,12 @@ Common action sequences:
 
 4. NAVIGATION & ERROR HANDLING:
 - If no suitable elements exist, use other functions to complete the task
-- If stuck, try alternative approaches - like going back to a previous page, new search, new tab etc.
+- If stuck, try alternative approaches - like going back to a previous pages, new search, new tab etc.
 - Handle popups/cookies by accepting or closing them
 - Use scroll to find elements you are looking for
 - If you want to research something, open a new tab instead of using the current tab
 - If captcha pops up, try to solve it - else try a different approach
-- If the page is not fully loaded, use wait action
+- If the pages is not fully loaded, use wait action
 
 5. TASK COMPLETION:
 - Use the done action as the last action as soon as the ultimate task is complete
@@ -56,7 +56,7 @@ Common action sequences:
 - Make sure you include everything you found out for the ultimate task in the done text parameter. Do not just say you are done, but include the requested information of the task.
 
 6. VISUAL CONTEXT:
-- When an image is provided, use it to understand the page layout
+- When an image is provided, use it to understand the pages layout
 - Bounding boxes with labels on their top right corner correspond to element indexes
 
 7. Form filling:
@@ -74,7 +74,7 @@ NEXT_STEP_PROMPT = """
 What should I do next to achieve my goal?
 
 When you see [Current state starts here], focus on the following:
-- Current URL and page title{url_placeholder}
+- Current URL and pages title{url_placeholder}
 - Available tabs{tabs_placeholder}
 - Interactive elements and their indices
 - Content above{content_above_placeholder} or below{content_below_placeholder} the viewport (if indicated)

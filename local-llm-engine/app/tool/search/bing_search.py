@@ -78,10 +78,10 @@ class BingSearchEngine(WebSearchEngine):
         self, url: str, rank_start: int = 0, first: int = 1
     ) -> Tuple[List[SearchItem], str]:
         """
-        Parse Bing search result HTML to extract search results and the next page URL.
+        Parse Bing search result HTML to extract search results and the next pages URL.
 
         Returns:
-            tuple: (List of SearchItem objects, next page URL or None)
+            tuple: (List of SearchItem objects, next pages URL or None)
         """
         try:
             res = self.session.get(url=url)
@@ -123,7 +123,7 @@ class BingSearchEngine(WebSearchEngine):
                 except Exception:
                     continue
 
-            next_btn = root.find("a", title="Next page")
+            next_btn = root.find("a", title="Next pages")
             if not next_btn:
                 return list_data, None
 
