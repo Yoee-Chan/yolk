@@ -12,7 +12,7 @@ from app.utils.logger import logger
 #     description: str
 #     parameters: Optional[dict] = None
 
-#     class Setting:
+#     class Assistant:
 #         arbitrary_types_allowed = True
 
 #     async def __call__(self, **kwargs) -> Any:

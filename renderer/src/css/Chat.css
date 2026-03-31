@@ -1,0 +1,38 @@
+/* 右侧聊天区 */
+.chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 聊天内容 */
+.chat-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* 输入框 */
+.chat-input {
+    display: flex;
+    padding: 12px;
+    background: #fff;
+    border-top: 1px solid #ddd;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.chat-input button {
+    margin-left: 10px;
+    padding: 10px 16px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}

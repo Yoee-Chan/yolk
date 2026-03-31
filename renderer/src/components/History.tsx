@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface Message {
-    role: "user" | "assistant";
+    id: string;
     content: string;
 }
 
@@ -9,14 +9,15 @@ interface HistoryProps {
     messages: Message[];
 }
 
-export default function History({ messages }: HistoryProps) {
+export default function History({messages}: HistoryProps) {
     return (
         <div className="history">
-            <h2>聊天记录</h2>
+            <h3>任务记录</h3>
             {messages.map((m, i) => (
                 <div key={i} className="history-item">
-                    <strong>{m.role === "user" ? "你：" : "AI："}</strong>
-                    {m.content.slice(0, 20)}...
+                    {
+                        m.content.length > 20 ? m.content.slice(0, 20) + "..." : m.content
+                    }
                 </div>
             ))}
         </div>
