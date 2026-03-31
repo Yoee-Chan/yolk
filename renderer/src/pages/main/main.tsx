@@ -8,6 +8,10 @@ import NewTask from "../../components/NewTask";
 import PipelineTask from "../../components/PipelineTask";
 import TokenMange from "../../components/TokenMange";
 import Setting from "../../components/Setting";
+
+
+
+
 const PageMap = {
     chat: Chat,
     newTask: NewTask,

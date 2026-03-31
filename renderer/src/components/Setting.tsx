@@ -9,6 +9,28 @@ import {
 } from '@ant-design/icons';
 import '../css/Setting.css';
 
+// declare global {
+//     interface Window {
+//         api: {
+//             // runPython: (
+//             //     args: any,
+//             //     onData: (data: string) => void,
+//             //     onError: (err: string) => void,
+//             //     onExit: (code: number) => void
+//             // ) => void;
+//             //
+//             // sendPythonInput: (data: any) => void;
+//             //
+//             // onPythonInputEcho?: (callback: (data: string) => void) => void;
+//             //
+//             // // ⭐ 新增：选择文件夹
+//             selectFolder: () => Promise<string | null>;
+//         };
+//     }
+// }
+
+
+
 const {Text} = Typography;
 
 interface MCPServer {
@@ -32,11 +54,17 @@ interface ProviderConfig {
 export default function Setting() {
     // ====== 事件函数（带类型） ======
     const onEditWorkspace = (): void => {
+
         console.log("edit workspace");
     };
 
-    const onEditPath = (): void => {
-        console.log("edit path");
+    const onEditPath = async (): Promise<void> => {
+        const folder = await window.api.selectFolder();
+        console.log("选择的文件夹：", folder);
+
+        if (folder) {
+            setPath(folder);
+        }
     };
 
     const onRename = (dir: string): void => {
@@ -55,7 +83,7 @@ export default function Setting() {
         console.log("create new directory");
     };
 
-    const path: string = "/Users/chan/workspace";
+    const [path, setPath] = useState("/Users/chan/workspace1")
     const directories: string[] = ["src", "config", "plugins", "logs"];
 
     // ====== MCP 配置状态 ======

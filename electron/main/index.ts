@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ipcMain} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog} from 'electron'
 import path from 'path'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
@@ -48,7 +48,7 @@ app.whenReady().then(() => {
         })
 
         //send event to python init applicaiton.
-        py.stdin.write(JSON.stringify({event:"init_app"})+'\n')
+        py.stdin.write(JSON.stringify({event: "init_app"}) + '\n')
 
         py.stdout.on('data', data => {
             event.sender.send('python-stream', data.toString())
@@ -72,4 +72,12 @@ app.whenReady().then(() => {
             py.stdin.write(JSON.stringify(data) + '\n')
         }
     })
+    //文件夹选择
+    ipcMain.handle('select-folder', async () => {
+        const result = await dialog.showOpenDialog({
+            properties: ['openDirectory']
+        })
+        return result.filePaths?.[0] || null
+    })
+
 })
