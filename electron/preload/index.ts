@@ -32,5 +32,6 @@ contextBridge.exposeInMainWorld('api', {
     },
     onPythonInputEcho: (callback: (data: string) => void) => {
         ipcRenderer.on('python-input-echo', (_, data) => callback(data));
-    }
+    },
+    selectFolder: () => ipcRenderer.invoke('select-folder')
 })

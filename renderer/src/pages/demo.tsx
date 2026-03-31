@@ -1,22 +1,22 @@
 import React, {useEffect, useState} from 'react';
 
-declare global {
-    interface Window {
-        api: {
-            runPython: (
-                args: any,
-                onData: (data: string) => void,
-                onError: (err: string) => void,
-                onExit: (code: number) => void
-            ) => void;
-
-            sendPythonInput: (data: any) => void;
-
-            //  新增：监听 main.js 回传的输入回显
-            onPythonInputEcho?: (callback: (data: string) => void) => void;
-        };
-    }
-}
+// declare global {
+//     interface Window {
+//         api: {
+//             runPython: (
+//                 args: any,
+//                 onData: (data: string) => void,
+//                 onError: (err: string) => void,
+//                 onExit: (code: number) => void
+//             ) => void;
+//
+//             sendPythonInput: (data: any) => void;
+//
+//             //  新增：监听 main.js 回传的输入回显
+//             onPythonInputEcho?: (callback: (data: string) => void) => void;
+//         };
+//     }
+// }
 
 export default function App() {
     const [result, setResult] = useState('');
