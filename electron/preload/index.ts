@@ -33,5 +33,6 @@ contextBridge.exposeInMainWorld('api', {
     onPythonInputEcho: (callback: (data: string) => void) => {
         ipcRenderer.on('python-input-echo', (_, data) => callback(data));
     },
-    selectFolder: () => ipcRenderer.invoke('select-folder')
+    selectFolder: () => ipcRenderer.invoke('select-folder'),
+    scanWorkspace: (path: string) => ipcRenderer.invoke("scan-workspace", path)
 })

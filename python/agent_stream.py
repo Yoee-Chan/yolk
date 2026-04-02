@@ -18,23 +18,23 @@ LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
 
 sys.path.append(BASE_DIR)
 sys.path.append(LLM_ENGINE_DIR)
-from python.model.ai_model import AIModel
+# from python.model.ai_model import AIModel
 
 
-async def model(msg: str):
-    ai = AIModel()
-    try:
-        agent = await ai.create_agent()
-        prompt = '你是一个纯文本助手，不要调用任何工具，不要执行任何文件操作，只输出文本.{hello，这是一个测试}'
-        result = await agent.run(prompt)
-
-        print(json.dumps({"result": result}, ensure_ascii=False), flush=True)
-
-    except Exception as e:
-        print(json.dumps({"error": str(e)}), flush=True)
-
-    finally:
-        await ai.close()
+# async def model(msg: str):
+#     ai = AIModel()
+#     try:
+#         agent = await ai.create_agent()
+#         prompt = '你是一个纯文本助手，不要调用任何工具，不要执行任何文件操作，只输出文本.{hello，这是一个测试}'
+#         result = await agent.run(prompt)
+#
+#         print(json.dumps({"result": result}, ensure_ascii=False), flush=True)
+#
+#     except Exception as e:
+#         print(json.dumps({"error": str(e)}), flush=True)
+#
+#     finally:
+#         await ai.close()
 
 
 # if __name__ == "__main__":
@@ -50,7 +50,7 @@ async def model(msg: str):
 # asyncio.run(model(msg))
 # import asyncio, sys, json
 
-# agent.py
+# agent_stream.py
 import sys
 import json
 import asyncio

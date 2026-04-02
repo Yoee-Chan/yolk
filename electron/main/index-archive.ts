@@ -5,10 +5,10 @@ import {spawn} from 'child_process'
 
 function getPythonCommand() {
     if (!app.isPackaged) {
-        // dev 模式：直接运行 python agent.py
+        // dev 模式：直接运行 python agent_stream.py
         return {
             command: 'python',
-            args: [path.join(process.cwd(), 'python/agent.py')]
+            args: [path.join(process.cwd(), 'python/agent_stream.py')]
         }
     } else {
         // prod 模式：运行打包后的 agent.exe
