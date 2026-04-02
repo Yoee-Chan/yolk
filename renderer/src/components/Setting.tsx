@@ -30,7 +30,6 @@ import '../css/Setting.css';
 // }
 
 
-
 const {Text} = Typography;
 
 interface MCPServer {
@@ -64,9 +63,55 @@ export default function Setting() {
 
         if (folder) {
             setPath(folder);
+            let list_subfolder = {
+                "type": "command",
+                "cmd": "list_files",
+                "args": {"path": path}
+            }
+            // const dirs = await window.api.scanWorkspace(folder);
+            // console.log("子目录", dirs)
+            window.api.runPython(
+                {msg: 'Hello from React'},
+
+                (data) => {
+                    try {
+                        const msg = JSON.parse(data);
+
+                        if (msg.type === 'stream') {
+                            console.log(msg.text)
+                        }
+
+                        //  Python 请求前端输入
+                        if (msg.type === 'need_input') {
+
+                            console.log(msg.text, msg.id)
+                        }
+                    } catch (e) {
+                        console.log(data)
+                    }
+                },
+
+                (err) => {
+                    console.log(err)
+                },
+
+                (code) => {
+                    console.log(code)
+                }
+            );
         }
     };
+    const loadSubDirs = async () => {
+        if (!path) return;
 
+        let list_subfolder = {
+            "type": "command",
+            "cmd": "list_files",
+            "args": {"path": path}
+        }
+        const dirs = await window.api.scanWorkspace(JSON.stringify(list_subfolder));
+        console.log("子目录：", dirs);
+    };
     const onRename = (dir: string): void => {
         console.log("rename", dir);
     };
