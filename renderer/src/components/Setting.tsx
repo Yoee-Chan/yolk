@@ -9,27 +9,6 @@ import {
 } from '@ant-design/icons';
 import '../css/Setting.css';
 
-// declare global {
-//     interface Window {
-//         api: {
-//             // runPython: (
-//             //     args: any,
-//             //     onData: (data: string) => void,
-//             //     onError: (err: string) => void,
-//             //     onExit: (code: number) => void
-//             // ) => void;
-//             //
-//             // sendPythonInput: (data: any) => void;
-//             //
-//             // onPythonInputEcho?: (callback: (data: string) => void) => void;
-//             //
-//             // // ⭐ 新增：选择文件夹
-//             selectFolder: () => Promise<string | null>;
-//         };
-//     }
-// }
-
-
 const {Text} = Typography;
 
 interface MCPServer {
