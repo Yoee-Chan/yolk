@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import json
@@ -18,7 +19,7 @@ if __name__ == "__main__":
 
     cmd = msg.get("cmd")
     args = msg.get("args", {})
-
+    logging.info("************************")
     if cmd == "list_files":
         try:
             result = list_subdir(args["path"])

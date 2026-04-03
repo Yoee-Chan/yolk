@@ -35,7 +35,7 @@ async def main(host: str = "localhost", port: int = 10000):
                 description="Executes Python code string. Note: Only print outputs are visible, function return values are not captured. Use print statements to see results.",
                 tags=["Execute Python Code"],
                 examples=[
-                    "Execute Python code:'''python \n Print('Hello World') \n '''"
+                    "Execute Python code:'''agent-runtime \n Print('Hello World') \n '''"
                 ],
             ),
             AgentSkill(
