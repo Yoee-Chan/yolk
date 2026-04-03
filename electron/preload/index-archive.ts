@@ -7,10 +7,10 @@ contextBridge.exposeInMainWorld('api', {
         onError: (err: string) => void,
         onExit: (code: number) => void
     ) => {
-        ipcRenderer.send('run-python', args)
+        ipcRenderer.send('run-agent-runtime', args)
 
-        ipcRenderer.on('python-stream', (_, data) => onData(data))
-        ipcRenderer.on('python-error', (_, err) => onError(err))
-        ipcRenderer.on('python-exit', (_, code) => onExit(code))
+        ipcRenderer.on('agent-runtime-stream', (_, data) => onData(data))
+        ipcRenderer.on('agent-runtime-error', (_, err) => onError(err))
+        ipcRenderer.on('agent-runtime-exit', (_, code) => onExit(code))
     }
 })

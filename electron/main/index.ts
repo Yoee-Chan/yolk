@@ -8,8 +8,8 @@ let py: ChildProcessWithoutNullStreams | null = null  //  正确类型
 function getStreamPythonCommand() {
     if (!app.isPackaged) {
         return {
-            command: 'python',
-            args: [path.join(process.cwd(), 'python/agent_stream.py')]
+            command: 'agent-runtime',
+            args: [path.join(process.cwd(), 'agent-runtime/agent_stream.py')]
         }
     } else {
         return {
@@ -22,8 +22,8 @@ function getStreamPythonCommand() {
 function getToolsPythonCommand() {
     if (!app.isPackaged) {
         return {
-            command: 'python',
-            args: [path.join(process.cwd(), 'python/agent_tools.py')]
+            command: 'agent-runtime',
+            args: [path.join(process.cwd(), 'agent-runtime/agent_tools.py')]
         }
     } else {
         return {
@@ -55,7 +55,7 @@ app.whenReady().then(() => {
     createWindow()
 
     //  启动流式的Python
-    ipcMain.on('run-python', (event, args) => {
+    ipcMain.on('run-agent-runtime', (event, args) => {
         const {command, args: baseArgs} = getStreamPythonCommand()
 
         py = spawn(command, baseArgs, {
@@ -65,24 +65,24 @@ app.whenReady().then(() => {
         py.stdin.write(JSON.stringify({event: "init_app"}) + '\n')
 
         py.stdout.on('data', data => {
-            event.sender.send('python-stream', data.toString())
+            event.sender.send('agent-runtime-stream', data.toString())
         })
 
         py.stderr.on('data', err => {
-            event.sender.send('python-error', err.toString())
+            event.sender.send('agent-runtime-error', err.toString())
         })
 
         py.on('close', code => {
-            event.sender.send('python-exit', code)
+            event.sender.send('agent-runtime-exit', code)
             py = null
         })
     })
 
 
     //  前端输入 → Python stdin
-    ipcMain.on('python-input', (event, data) => {
+    ipcMain.on('agent-runtime-input', (event, data) => {
         console.log('收到前端输入：', data)
-        event.sender.send('python-input-echo', JSON.stringify(data));
+        event.sender.send('agent-runtime-input-echo', JSON.stringify(data));
         if (py && py.stdin.writable) {
             py.stdin.write(JSON.stringify(data) + '\n')
         }
