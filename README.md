@@ -26,7 +26,8 @@
 
 ```
 
-
+Electron 负责写配置（用户操作）  
+Python 负责读配置（执行 agent）
 
 ## 项目的依赖安装
 
@@ -63,11 +64,12 @@ npm run build:dev
 ````
 
 ```shell
-conda create -n yolk python=3.11
+conda create -n yolk agent-controller=3.11
 conda activate yolk
 ```
 
 ## 核心功能
+
 1. UI界面setting页面可以配置MCP服务器，用户可以自由的配置自己的MCP SERVER
 2. UI界面Setting有一个页面给用户配置服务商的URL和密钥，也可以选择自己默认的aliyun
 3. 用户可以配置一个WorkSpace,默认位置是在桌面上，用户可以自己手动配置，并且用户可以配置子目录的权限（readonly or write）
@@ -76,7 +78,9 @@ conda activate yolk
 6. Agent可以在WorkSpace里面操作文件，比如讲A文件的B列数据按照分组、聚合、提取的放到新的excel里面。
 
 ### 风险等级(Setting里面配置)
+
 风险等级分为三类，默认分享等级为中级（medium）,前端有一个滑块，1为更灵活，5为模糊，10为精确.
+
 * 每个动作都确认
 * 只有高风险动作确认
 * LLM 自己决定什么时候问人类
@@ -85,6 +89,7 @@ conda activate yolk
 
 **EMC记忆压缩** 接近人类记忆的压缩机制，按时间、主题、关键词组织，可以顺着线索还原当时的状态，不是简单的向量检索，而是结构化记忆。
 人类记忆是压缩的、模糊的、线索化的、按时间衰减的；而大模型的上下文是线性的、昂贵的、容易遗忘的。
+
 ## 为什么大模型需要“记忆压缩”
 
 因为模型无法长期记住上下文，无法存储大量历史，无法自动组织记忆，无法主动回忆，无法模拟“人类记忆的模糊性“
@@ -133,13 +138,17 @@ conda activate yolk
 ## 文件组织结构
 
 ## 前端的安装包
+
 ```shell
 npm install react-router-dom
 ```
+
 ## 产品路线
+
 ### 阶段 1：基础能力搭建（已完成 60%）
+
 * 构建双 Agent 架构：
-*  agent_stream.py（流式大模型）
+* agent_stream.py（流式大模型）
 
 * agent_tools.py（一次性工具 API）
 
@@ -155,11 +164,11 @@ npm install react-router-dom
 
 * 配置文件从 EXE 分离，放入用户目录（可写）
 
-
 ### 阶段 2：意图解析 + 工具调用（核心能力）
+
 用户自然语言 → LLM 解析意图
 
-*  LLM 输出结构化指令（action + params）
+* LLM 输出结构化指令（action + params）
 
 * agent_tools.py 执行对应任务
 
@@ -180,6 +189,7 @@ npm install react-router-dom
 * 支持“多步骤任务”（LLM 规划 → 工具执行 → 汇报）
 
 ### 阶段 3：本地记忆系统（Local Memory）
+
 本地 memory.json（长期记忆）
 
 记忆类型：
@@ -201,9 +211,10 @@ npm install react-router-dom
 * 支持“用户可编辑记忆”
 
 ### 阶段 4：插件系统（Plugin System）
+
 工具 API 抽象成插件接口
 
-*  插件目录：plugins/
+* 插件目录：plugins/
 
 插件类型：
 
@@ -222,6 +233,7 @@ npm install react-router-dom
 * 插件市场（未来可扩展）
 
 ### 阶段 5：商业化与产品化
+
 * 用户模型管理 UI（选择模型、参数调整）
 
 * 权限 UI（文件、网络、执行权限）
