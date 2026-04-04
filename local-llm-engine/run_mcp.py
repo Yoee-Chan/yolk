@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env agent-controller
 import argparse
 import asyncio
 import sys

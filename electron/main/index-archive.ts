@@ -5,10 +5,10 @@ import {spawn} from 'child_process'
 
 function getPythonCommand() {
     if (!app.isPackaged) {
-        // dev 模式：直接运行 agent-runtime agent_stream.py
+        // dev 模式：直接运行 agent-controller agent_stream.py
         return {
-            command: 'agent-runtime',
-            args: [path.join(process.cwd(), 'agent-runtime/agent_stream.py')]
+            command: 'agent-controller',
+            args: [path.join(process.cwd(), 'agent-controller/agent_stream.py')]
         }
     } else {
         // prod 模式：运行打包后的 agent.exe
@@ -39,17 +39,17 @@ function createWindow() {
 app.whenReady().then(() => {
     createWindow()
 
-    ipcMain.on('run-agent-runtime', (event, args) => {
+    ipcMain.on('run-agent-controller', (event, args) => {
         const {command, args: baseArgs} = getPythonCommand()
 
         const py = spawn(command, [...baseArgs, JSON.stringify(args)])
 
         py.stdout.on('data', data => {
-            event.sender.send('agent-runtime-result', data.toString())
+            event.sender.send('agent-controller-result', data.toString())
         })
 
         py.stderr.on('data', err => {
-            event.sender.send('agent-runtime-error', err.toString())
+            event.sender.send('agent-controller-error', err.toString())
         })
     })
 })

@@ -1,5 +1,5 @@
 {
-  "name": "freeworking_win",
+  "name": "yolk",
   "version": "1.0.0",
   "main": "dist-electron/main/index.js",
   "description": "FreeWorking Windows Desktop App",
