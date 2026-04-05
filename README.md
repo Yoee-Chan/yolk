@@ -26,6 +26,32 @@
 
 ```
 
+**Setting后端架构**
+
+```text
++---------------------------+
+| SettingService            |
+|  - 根据 key 找到 Factory   |
+|  - 调用 Repository CRUD    |
++---------------------------+
+             |
+             v
++---------------------------+
+| SETTING_REGISTRY (mapping)|
++---------------------------+
+   |         |         |
+   v         v         v
+Workspace   MCP      LLM
+ Factory    Factory   Factory
+   |         |         |
+   v         v         v
+Repository  Repository Repository
+Strategy    Strategy   Strategy
+Validator   Validator  Validator
+UI Schema   UI Schema  UI Schema
+
+```
+
 Electron 负责写配置（用户操作）  
 Python 负责读配置（执行 agent）
 
