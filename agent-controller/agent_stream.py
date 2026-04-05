@@ -6,6 +6,8 @@ import asyncio
 import os
 import sys
 
+from model.ai_model import AIModel
+
 
 def get_base_dir():
     if getattr(sys, 'frozen', False):
@@ -18,7 +20,6 @@ LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
 
 sys.path.append(BASE_DIR)
 sys.path.append(LLM_ENGINE_DIR)
-from python.model.ai_model import AIModel
 
 
 async def model(msg: str):
