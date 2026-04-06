@@ -2,35 +2,38 @@ import os
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Dict
 import uuid
+
+from .json_repository import JSONSettingRepository
 from .models import (
     WorkspaceSetting,
     WorkspaceSettingCreate,
     WorkspaceSettingUpdate,
     MCPSetting,
     MCPSettingCreate,
-    MCPSettingUpdate,
+    MCPSettingUpdate, WorkspaceParam, MCPParam,
 )
 
 TCreate = TypeVar("TCreate")
 TUpdate = TypeVar("TUpdate")
 TModel = TypeVar("TModel")
+TParam = TypeVar("TParam")
 
 
-class SettingRepository(ABC, Generic[TCreate, TUpdate, TModel]):
+class SettingRepository(ABC, Generic[TCreate, TUpdate, TModel, TParam]):
     @abstractmethod
     def add(self, data: TCreate) -> TModel:
         ...
 
     @abstractmethod
-    def update(self, id_: str, data: TUpdate) -> TModel:
+    def update(self, param: TParam, data: TUpdate) -> TModel:
         ...
 
     @abstractmethod
-    def delete(self, id_: str) -> None:
+    def delete(self, param: TParam) -> None:
         ...
 
     @abstractmethod
-    def get(self, id_: str) -> TModel:
+    def get(self, param: TParam) -> TModel:
         ...
 
     @abstractmethod
@@ -41,52 +44,60 @@ class SettingRepository(ABC, Generic[TCreate, TUpdate, TModel]):
 # ===== 具体业务逻辑 =====
 
 class WorkspaceSettingRepository(
-    SettingRepository[WorkspaceSettingCreate, WorkspaceSettingUpdate, WorkspaceSetting]
+    JSONSettingRepository[MCPSetting],
+    SettingRepository[WorkspaceSettingCreate, WorkspaceSettingUpdate, WorkspaceSetting, WorkspaceParam]
 ):
-    def __init__(self) -> None:
+    def __init__(self, json_path) -> None:
+        super().__init__(json_path)
         self._store: Dict[str, WorkspaceSetting] = {}
 
     def add(self, data: WorkspaceSettingCreate) -> WorkspaceSetting:
         new_id = str(uuid.uuid4())
         setting = WorkspaceSetting(
-            id=new_id,
             path=data.path,
             sandbox=data.sandbox,
+            sub_path=[]
         )
         self._store[new_id] = setting
         return setting
 
-    def update(self, id_: str, data: WorkspaceSettingUpdate) -> WorkspaceSetting:
-        setting = self._store[id_]
+    def update(self, path: WorkspaceParam, data: WorkspaceSettingUpdate) -> WorkspaceSetting:
+        setting = self._store[path.path]
         if data.path is not None:
-            setting.path = data.path
+            setting.path = data.path.path
         if data.sandbox is not None:
             setting.sandbox = data.sandbox
         return setting
 
-    def delete(self, id_: str) -> None:
-        self._store.pop(id_, None)
+    def delete(self, path: WorkspaceParam) -> None:
+        self._store.pop(path.path, None)
 
-    def get(self, id_: str) -> list[WorkspaceSetting]:
+    def get(self, path: str) -> WorkspaceSetting:
         """
         search sub folder via path
         """
-        dirs: list[WorkspaceSetting] = []
-        for name in os.listdir(id_):
-            full = os.path.join(id_, name)
+        dirs: list[str] = []
+        print(path)
+        for name in os.listdir(path):
+            full = os.path.join(path, name)
             if os.path.isdir(full):
-                ws = WorkspaceSetting(path=full, id=id_, sandbox=False)
-                dirs.append(ws)
-        return dirs
+                dirs.append(full)
+        search_subPath = WorkspaceSetting(path=path, sub_path=dirs, sandbox=False)
+        return search_subPath
 
     def list(self) -> list[WorkspaceSetting]:
         return list(self._store.values())
 
+    def _check_exists_workspace(self):
+        ...
+
 
 class MCPSettingRepository(
-    SettingRepository[MCPSettingCreate, MCPSettingUpdate, MCPSetting]
+    JSONSettingRepository[MCPSetting],
+    SettingRepository[MCPSettingCreate, MCPSettingUpdate, MCPSetting, MCPParam]
 ):
-    def __init__(self) -> None:
+    def __init__(self, json_path) -> None:
+        super().__init__(json_path)
         self._store: Dict[str, MCPSetting] = {}
 
     def add(self, data: MCPSettingCreate) -> MCPSetting:

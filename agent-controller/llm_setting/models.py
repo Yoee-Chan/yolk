@@ -6,9 +6,15 @@ from typing import Optional
 
 @dataclass
 class WorkspaceSetting:
-    id: str
     path: str
+    sub_path: list[str]
     sandbox: bool
+
+
+@dataclass
+class WorkspaceParam:
+    path: str
+    sandbox: bool = True
 
 
 @dataclass
@@ -38,6 +44,12 @@ class MCPSetting:
 
 @dataclass
 class MCPSettingCreate:
+    server_url: str
+    token: str
+
+
+@dataclass
+class MCPParam:
     server_url: str
     token: str
 

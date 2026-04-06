@@ -1,9 +1,8 @@
 import logging
 import os
-from llm_setting.setting import Setting
 
 
-class WorkSpace(Setting):
+class WorkSpace():
     def __init__(self, path):
         self.path = path
 

@@ -50,8 +50,8 @@ class SettingFactory(ABC):
 
 
 class WorkspaceSettingFactory(SettingFactory):
-    def __init__(self) -> None:
-        self._repo = WorkspaceSettingRepository()
+    def __init__(self,paths) -> None:
+        self._repo = WorkspaceSettingRepository(paths)
         self._validator = WorkspaceSettingValidator()
 
     def get_repository(self):
@@ -76,8 +76,8 @@ class WorkspaceSettingFactory(SettingFactory):
 
 
 class MCPSettingFactory(SettingFactory):
-    def __init__(self) -> None:
-        self._repo = MCPSettingRepository()
+    def __init__(self,paths) -> None:
+        self._repo = MCPSettingRepository(paths)
         self._validator = MCPSettingValidator()
 
     def get_repository(self):
