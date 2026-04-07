@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+from typing import List
 
 
 # ===== Workspace =====
@@ -32,6 +33,18 @@ class WorkspaceSettingUpdate:
 @dataclass
 class SubWorkspaceSearch:
     sub_paths: list
+
+
+@dataclass
+class SubPathConfig:
+    subPathName: str
+    permission: str
+
+
+@dataclass
+class WorkspaceConfig:
+    workSpace: str
+    subPath: List[SubPathConfig] = field(default_factory=list)
 
 
 # ===== MCP =====
