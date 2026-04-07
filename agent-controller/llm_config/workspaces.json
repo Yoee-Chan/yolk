@@ -1,0 +1,13 @@
+{
+  "workSpace": "C:\\Users\\yoeec\\Desktop\\workSpace",
+  "subPath": [
+    {
+      "subPathName": "C:\\Users\\yoeec\\Desktop\\workSpace\\browse img",
+      "permission": "read-only"
+    },
+    {
+      "subPathName": "C:\\Users\\yoeec\\Desktop\\workSpace\\merge excel",
+      "permission": "write"
+    }
+  ]
+}

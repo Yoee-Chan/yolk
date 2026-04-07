@@ -51,7 +51,8 @@ class SettingHandler():
 
     def search_by_id(self, data: dict[str, Any]) -> list:
         try:
-            return self.repo.get(data["id"])
+
+            return self.repo.get(data["path"])
         except Exception as e:
             logging.error(f"Get an error when search---{self.setting_type}--{e}")
             logging.error(e)

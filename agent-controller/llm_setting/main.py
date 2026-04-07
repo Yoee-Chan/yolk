@@ -4,7 +4,7 @@ from llm_setting.setting_handler import SettingHandler
 def main():
     setting_handler = SettingHandler(setting_type="workspace")
     ws = setting_handler.search_by_id(data={
-        "id": "C:\\Users\\yoeec\\Desktop\\workSpace",
+        "path": "C:\\Users\\yoeec\\Desktop\\workSpace",
         "sandbox": True
     })
     print(ws)
