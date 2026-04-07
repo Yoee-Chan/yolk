@@ -1,6 +1,6 @@
 from .config_paths import ConfigPaths
 from pathlib import Path
-from .factories import (
+from .setting_factories import (
     SettingFactory,
     WorkspaceSettingFactory,
     MCPSettingFactory,

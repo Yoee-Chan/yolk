@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
-from .repositories import (
+from .setting_repositories import (
     SettingRepository,
     WorkspaceSettingRepository,
     MCPSettingRepository,
