@@ -2,7 +2,7 @@ from pathlib import Path
 
 from llm_setting.config_paths import ConfigPaths
 from llm_setting.json_repository import JSONSettingRepository
-from llm_setting.models import WorkspaceConfig
+from llm_setting.data_models import WorkspaceConfig
 from llm_setting.setting_handler import SettingHandler
 
 

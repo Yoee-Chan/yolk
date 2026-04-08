@@ -4,7 +4,7 @@ from typing import Generic, TypeVar, Dict
 import uuid
 
 from .json_repository import JSONSettingRepository
-from .models import (
+from .data_models import (
     WorkspaceSetting,
     WorkspaceSettingCreate,
     WorkspaceSettingUpdate,

@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from .registry import SETTING_REGISTRY
+from .setting_registry import SETTING_REGISTRY
 
 
 class SettingHandler():
