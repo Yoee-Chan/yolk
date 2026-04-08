@@ -1,7 +1,12 @@
+from pathlib import Path
+
+from llm_setting.config_paths import ConfigPaths
+from llm_setting.json_repository import JSONSettingRepository
+from llm_setting.models import WorkspaceConfig
 from llm_setting.setting_handler import SettingHandler
 
 
-def main():
+def test_main():
     setting_handler = SettingHandler(setting_type="workspace")
     ws = setting_handler.search_by_id(data={
         "id": "C:\\Users\\yoeec\\Desktop\\workSpace",
@@ -9,6 +14,19 @@ def main():
     })
     print(ws)
 
+
+def test_json_repository():
+    CURRENT_FILE = Path(__file__).resolve()
+    ROOT_DIR = CURRENT_FILE.parents[1]
+    LLM_CONFIG_DIR = ROOT_DIR
+    WORKSPACES_FILE = LLM_CONFIG_DIR
+    paths = ConfigPaths(WORKSPACES_FILE)
+    json_path = paths.workspace_json
+    print(json_path)
+    result = WorkspaceConfig
+    jon = JSONSettingRepository(json_path)
+    jon.load(result)
+    print(jon.get_store())
 
 # print("=== 添加 Workspace Setting ===")
 # ws = handle_setting_request(
@@ -63,7 +81,3 @@ def main():
 #
 # print("\n=== 列出所有 MCP Setting ===")
 # print(handle_setting_request("mcp", "list", {}))
-
-
-if __name__ == "__main__":
-    main()

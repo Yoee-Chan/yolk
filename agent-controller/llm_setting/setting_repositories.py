@@ -19,6 +19,7 @@ TModel = TypeVar("TModel")
 TParam = TypeVar("TParam")
 
 
+
 class SettingRepository(ABC, Generic[TCreate, TUpdate, TModel, TParam]):
     @abstractmethod
     def add(self, data: TCreate) -> TModel:
@@ -77,7 +78,6 @@ class WorkspaceSettingRepository(
         search sub folder via path
         """
         dirs: list[str] = []
-        print(path)
         for name in os.listdir(path):
             full = os.path.join(path, name)
             if os.path.isdir(full):
