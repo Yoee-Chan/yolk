@@ -10,14 +10,13 @@ from .data_models import (
     WorkspaceSettingUpdate,
     MCPSetting,
     MCPSettingCreate,
-    MCPSettingUpdate, WorkspaceParam, MCPParam,
+    MCPSettingUpdate, WorkspaceParam, MCPParam, WorkspaceConfig,
 )
 
 TCreate = TypeVar("TCreate")
 TUpdate = TypeVar("TUpdate")
 TModel = TypeVar("TModel")
 TParam = TypeVar("TParam")
-
 
 
 class SettingRepository(ABC, Generic[TCreate, TUpdate, TModel, TParam]):
@@ -85,8 +84,10 @@ class WorkspaceSettingRepository(
         search_subPath = WorkspaceSetting(path=path, sub_path=dirs, sandbox=False)
         return search_subPath
 
-    def list(self) -> list[WorkspaceSetting]:
-        return list(self._store.values())
+    def list(self) -> WorkspaceConfig:
+        super().load(WorkspaceConfig)
+        result = super().get_store()
+        return result
 
     def _check_exists_workspace(self):
         ...

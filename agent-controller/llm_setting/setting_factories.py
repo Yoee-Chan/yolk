@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
+from .config_paths import ConfigPaths
 from .setting_repositories import (
     SettingRepository,
     WorkspaceSettingRepository,
@@ -50,8 +51,8 @@ class SettingFactory(ABC):
 
 
 class WorkspaceSettingFactory(SettingFactory):
-    def __init__(self,paths) -> None:
-        self._repo = WorkspaceSettingRepository(paths)
+    def __init__(self,paths:ConfigPaths) -> None:
+        self._repo = WorkspaceSettingRepository(paths.workspace_json)
         self._validator = WorkspaceSettingValidator()
 
     def get_repository(self):

@@ -4,6 +4,7 @@ from llm_setting.config_paths import ConfigPaths
 from llm_setting.json_repository import JSONSettingRepository
 from llm_setting.data_models import WorkspaceConfig
 from llm_setting.setting_handler import SettingHandler
+from registrar.tools_request_registry import get_cmd
 
 
 def test_main():
@@ -27,6 +28,18 @@ def test_json_repository():
     jon = JSONSettingRepository(json_path)
     jon.load(result)
     print(jon.get_store())
+
+
+def test_search_work_space():
+    args = {}
+    cmd = "search"
+    setting_handler = SettingHandler("workspace")
+    cmd_invoke = get_cmd(setting_handler, args)
+    if cmd not in cmd_invoke:
+        raise ValueError(f"不支持的命令：{cmd}")
+    result = cmd_invoke.get(cmd)
+    print(result)
+    # result = setting_handler.search()
 
 # print("=== 添加 Workspace Setting ===")
 # ws = handle_setting_request(

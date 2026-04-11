@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('agent-controller-input-echo', (_, data) => callback(data));
     },
     selectFolder: () => ipcRenderer.invoke('select-folder'),
-    scanWorkspace: (path: string) => ipcRenderer.invoke("scan-workspace", path)
+
+    llmSetting: (param: string) => ipcRenderer.invoke("llm-Setting", param)
 })
