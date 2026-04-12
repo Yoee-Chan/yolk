@@ -16,30 +16,46 @@ def list_subdir(path):
     return dirs
 
 
-if __name__ == "__main__":
-    """
-    {
-    cmd:"add/update/delete/search/search_by_id"
-    SettingType:"workspace/mcp"
-    Param:[]
-    }
-    """
-    raw = sys.stdin.readline()
-    msg = json.loads(raw)
-    cmd = msg["cmd"]
+def main():
+    raw = sys.stdin.read().strip()
+    try:
+        msg = json.loads(raw)  # 解析前端传过来的 JSON
+    except json.JSONDecodeError as e:
+        print(json.dumps({
+            "type": "command_error",
+            "error": f"JSON decode failed: {e}"
+        }), flush=True)
+        return
+
+    # 拿到前端传过来的字段
     setting_type = msg.get("SettingType")
-    args = msg.get("Param", {})
+    cmd = msg.get("cmd")
+    param = msg.get("Param", {})
+
+    # 根据不同的 SettingType 和 cmd 做处理
     try:
         handler = SettingHandler(setting_type)
-        cmd_invoke = get_cmd(handler, args)
+        cmd_invoke = get_cmd(handler, param)
+
         if cmd not in cmd_invoke:
             raise ValueError(f"不支持的命令：{cmd}")
+
         result = cmd_invoke.get(cmd)
+
+        def safe_result(r):
+            if isinstance(r, (dict, list, str, int, float, bool, type(None))):
+                return r
+            elif hasattr(r, "to_dict"):
+                return r.to_dict()
+            else:
+                return str(r)
+
         print(json.dumps({
             "type": "command_result",
             "cmd": setting_type,
-            "result": result
+            "result": safe_result(result)
         }), flush=True)
+
     except Exception as e:
         print(json.dumps({
             "type": "command_error",
@@ -47,4 +63,6 @@ if __name__ == "__main__":
             "error": str(e)
         }), flush=True)
 
-sys.exit(0)
+
+if __name__ == "__main__":
+    main()

@@ -22,7 +22,7 @@ function getStreamPythonCommand() {
 function getToolsPythonCommand() {
     if (!app.isPackaged) {
         return {
-            command: 'agent-controller',
+            command: 'python',//python  agent-controller
             args: [path.join(process.cwd(), 'agent-controller/agent_tools.py')]
         }
     } else {
@@ -95,33 +95,43 @@ app.whenReady().then(() => {
         return result.filePaths?.[0] || null
     })
 
-    //扫描子目录
+    //call llm setting
     ipcMain.handle("llm-Setting", async (event, param: string) => {
+        console.log("llm-Setting param:", param);
         return new Promise((resolve, reject) => {
             const {command, args} = getToolsPythonCommand()
-
-            const py = spawn(command, args, {
-                cwd: process.cwd()
-            })
 
             let output = ""
             let error = ""
 
-            // 把参数写入 stdin
+            // 启动 Python 子进程
+            const py = spawn(command, args, {cwd: process.cwd()})
+
+            // 写入参数
             py.stdin.write(param + "\n")
             py.stdin.end()
 
+            // 捕获标准输出
             py.stdout.on("data", (data) => {
                 output += data.toString()
+                console.log("Python raw output:", output);
             })
 
+            // 捕获错误输出
             py.stderr.on("data", (data) => {
                 error += data.toString()
+                console.log("Python raw error:", error);
             })
 
+            // 捕获 spawn 错误（比如 ENOENT）
+            py.on("error", (err) => {
+                reject(new Error("Failed to spawn Python: " + err.message))
+            })
+
+            // 子进程关闭时返回结果
             py.on("close", (code) => {
                 if (code !== 0) {
-                    reject(new Error("Python exited with code " + code + "\n" + error))
+                    reject(new Error(`Python exited with code ${code}\n${error}`))
                     return
                 }
 
@@ -129,7 +139,7 @@ app.whenReady().then(() => {
                     const parsed = JSON.parse(output)
                     resolve(parsed.result)
                 } catch (e) {
-                    reject(new Error("JSON parse error: " + e))
+                    reject(new Error("JSON parse error: " + (e as Error).message + "\nOutput: " + output))
                 }
             })
         })
