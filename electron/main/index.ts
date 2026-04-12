@@ -96,7 +96,7 @@ app.whenReady().then(() => {
     })
 
     //扫描子目录
-    ipcMain.handle("scan-workspace", async (event, workspacePath: string) => {
+    ipcMain.handle("llm-Setting", async (event, param: string) => {
         return new Promise((resolve, reject) => {
             const {command, args} = getToolsPythonCommand()
 
@@ -108,10 +108,7 @@ app.whenReady().then(() => {
             let error = ""
 
             // 把参数写入 stdin
-            py.stdin.write(JSON.stringify({
-                cmd: "list_files",
-                args: {path: workspacePath}
-            }) + "\n")
+            py.stdin.write(param + "\n")
             py.stdin.end()
 
             py.stdout.on("data", (data) => {

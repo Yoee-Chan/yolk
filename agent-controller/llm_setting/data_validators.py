@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from .models import (
+from .data_models import (
     WorkspaceSettingCreate,
     WorkspaceSettingUpdate,
     MCPSettingCreate,

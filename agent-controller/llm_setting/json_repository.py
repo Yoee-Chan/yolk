@@ -32,8 +32,6 @@ class JSONSettingRepository(Generic[TModel]):
         with open(self.json_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
 
-        # 只支持单对象配置，而不是多 key 的 dict
-        # raw 是 WorkspaceConfig 对应的 dict
         kwargs = {}
 
         for field in fields(model_cls):
@@ -49,14 +47,11 @@ class JSONSettingRepository(Generic[TModel]):
                         inner_type(**item) for item in (value or [])
                     ]
                 else:
-                    # 列表里是普通类型
                     kwargs[field.name] = value or []
 
-            # 处理嵌套 dataclass
             elif is_dataclass(field.type) and isinstance(value, dict):
                 kwargs[field.name] = field.type()
 
-            # 普通字段
             else:
                 kwargs[field.name] = value
 

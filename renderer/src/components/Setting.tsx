@@ -88,7 +88,7 @@ export default function Setting() {
             "cmd": "list_files",
             "args": {"path": path}
         }
-        const dirs = await window.api.scanWorkspace(JSON.stringify(list_subfolder));
+        const dirs = await window.api.llmSetting(JSON.stringify(list_subfolder));
         console.log("子目录：", dirs);
     };
     const onRename = (dir: string): void => {

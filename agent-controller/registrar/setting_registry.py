@@ -1,6 +1,6 @@
-from .config_paths import ConfigPaths
+from llm_setting.config_paths import ConfigPaths
 from pathlib import Path
-from .setting_factories import (
+from llm_setting.setting_factories import (
     SettingFactory,
     WorkspaceSettingFactory,
     MCPSettingFactory,

@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from .registry import SETTING_REGISTRY
+from registrar.setting_registry import SETTING_REGISTRY
 
 
 class SettingHandler():
@@ -46,7 +46,8 @@ class SettingHandler():
         try:
             return self.repo.list()
         except Exception as e:
-            logging.error(f"Get an error when search---{self.setting_type}--{e}")
+            print(e)
+            # logging.error(f"Get an error when search---{self.setting_type}--{e}")
             return []
 
     def search_by_id(self, data: dict[str, Any]) -> list:
