@@ -14,6 +14,7 @@ declare global {
 
             selectFolder: () => Promise<string | null>;
             llmSetting: (Param: string) => Promise<string[]>;
+            scanWorkspace: (Param: string) => Promise<string[]>;
         };
     }
 }
