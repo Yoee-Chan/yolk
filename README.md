@@ -1,4 +1,4 @@
-# yolk
+# KongMing
 
 开发好的项目，只需要两步，即可完成python(ai-agent)和前端react项目打包，一键打包成windows安装包。可以实现agent的本地化部署。
 以及高效前端开发能力。

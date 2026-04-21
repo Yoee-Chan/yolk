@@ -114,13 +114,11 @@ app.whenReady().then(() => {
             // 捕获标准输出
             py.stdout.on("data", (data) => {
                 output += data.toString()
-                console.log("Python raw output:", output);
             })
 
             // 捕获错误输出
             py.stderr.on("data", (data) => {
                 error += data.toString()
-                console.log("Python raw error:", error);
             })
 
             // 捕获 spawn 错误（比如 ENOENT）
@@ -136,8 +134,8 @@ app.whenReady().then(() => {
                 }
 
                 try {
-                    const parsed = JSON.parse(output)
-                    resolve(parsed.result)
+                    //  const parsed = JSON.parse(output)
+                    resolve(output)
                 } catch (e) {
                     reject(new Error("JSON parse error: " + (e as Error).message + "\nOutput: " + output))
                 }

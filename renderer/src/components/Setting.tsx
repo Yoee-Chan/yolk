@@ -35,9 +35,29 @@ interface WorkSpace {
     Param: {}
 }
 
+interface SuPath {
+    subPathName: string,
+    permission: string
+}
+
+interface WorkingSpace {
+    workSpace: string,
+    subPath: SuPath[]
+}
+
+// interface SuPath {
+//     subPathName: string,
+//     permission: string
+// }
+
+class SubPath {
+    name: string | undefined;
+    permission: string | undefined
+
+}
+
 export default function Setting() {
     useEffect(() => {
-        console.log("初始化setting:组件")
         const init = async () => {
             await loadPaths();
         };
@@ -51,8 +71,6 @@ export default function Setting() {
 
     const onEditPath = async (): Promise<void> => {
         const folder = await window.api.selectFolder();
-        console.log("选择的文件夹：", folder);
-
         if (folder) {
             setPath(folder);
             let list_subfolder = {
@@ -69,18 +87,34 @@ export default function Setting() {
             "cmd": "search",
             "Param": {}
         }
-        const dirs = await window.api.llmSetting(JSON.stringify(listWorkspaceParam));
-        console.log("查询目录：", dirs);
+        const dirsString: string = await window.api.llmSetting(JSON.stringify(listWorkspaceParam));
+        const ws: WorkingSpace = JSON.parse(JSON.parse(dirsString).result);
+        if (ws) {
+            setPath(ws.workSpace)
+            const subPathDisPlayName: SubPath[] = []
+
+            ws.subPath.forEach((subPath: SuPath) => {
+                const subPathName: string[] = subPath.subPathName.split(/[\\/]+/)
+                const  subPathItem:SubPath={
+                    name:subPathName[subPathName.length - 1],
+                    permission: subPath.permission
+                }
+                subPathDisPlayName.push(subPathItem)
+            })
+            setSubPaths(subPathDisPlayName)
+        }
+
+
     };
-    const onRename = (dir: string): void => {
+    const onRename = (dir: string | undefined): void => {
         console.log("rename", dir);
     };
 
-    const onPermission = (dir: string): void => {
+    const onPermission = (dir: string | undefined): void => {
         console.log("permission", dir);
     };
 
-    const onDelete = (dir: string): void => {
+    const onDelete = (dir: string | undefined): void => {
         console.log("delete", dir);
     };
 
@@ -89,7 +123,12 @@ export default function Setting() {
     };
 
     const [path, setPath] = useState("/Users/chan/workspace1")
-    const directories: string[] = ["src", "config", "plugins", "logs"];
+    const [subPaths, setSubPaths] = useState<SubPath[]>([
+        {name: 'src', permission: 'rw'},
+        {name: 'config', permission: 'ro'},
+        {name: 'plugins', permission: 'rw'},
+        {name: 'logs', permission: 'ro'},
+    ]);
 
     // ====== MCP 配置状态 ======
     const [config, setConfig] = useState<MCPConfig>({
@@ -102,7 +141,6 @@ export default function Setting() {
     });
     const [formVisible, setFormVisible] = useState(false);
     const [form] = Form.useForm();
-
     const handleAddServer = (values: { name: string; type: string; url: string }) => {
         setConfig(prev => ({
             mcpServers: {
@@ -161,30 +199,42 @@ export default function Setting() {
                     </div>
 
                     <div>
-                        {directories.map((dir) => (
-                            <Flex
-                                key={dir}
-                                justify="space-between"
-                                align="center"
-                                style={{
-                                    padding: '8px 0',
-                                    borderBottom: '1px solid #f0f0f0',
-                                }}
-                            >
-                                {/* 左侧：图标 + 名称 */}
-                                <Flex align="center" gap={8}>
-                                    <FolderOpenOutlined/>
-                                    <Text>{dir}</Text>
-                                </Flex>
 
-                                {/* 右侧：操作按钮 */}
-                                <Space size={16}>
-                                    <EditOutlined onClick={() => onRename(dir)}/>
-                                    <SettingOutlined onClick={() => onPermission(dir)}/>
-                                    <DeleteOutlined onClick={() => onDelete(dir)}/>
-                                </Space>
-                            </Flex>
-                        ))}
+                        <div>
+                            {subPaths.map((dir: SubPath) => (
+                                <Flex
+                                    key={dir.name}
+                                    justify="space-between"
+                                    align="center"
+                                    style={{
+                                        padding: '8px 0',
+                                        borderBottom: '1px solid #f0f0f0',
+                                    }}
+                                >
+                                    {/* 左侧：图标 + 名称 */}
+                                    <Flex align="center" gap={8}>
+                                        <FolderOpenOutlined/>
+                                        <Text>{dir.name}</Text>
+                                    </Flex>
+
+                                    {/* 中间：权限展示 */}
+                                    <div style={{marginRight: 16}}>
+                                        <Text type="secondary">
+                                            {dir.permission === 'rw' ? '读写' : '只读'}
+                                        </Text>
+                                    </div>
+
+                                    {/* 右侧：操作按钮 */}
+                                    <Space size={16}>
+                                        <EditOutlined onClick={() => onRename(dir.name)}/>
+                                        <SettingOutlined onClick={() => onPermission(dir.name)}/>
+                                        <DeleteOutlined onClick={() => onDelete(dir.name)}/>
+                                    </Space>
+                                </Flex>
+                            ))}
+                        </div>
+
+
                     </div>
 
                     {/* 创建新目录 */}

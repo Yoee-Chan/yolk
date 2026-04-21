@@ -1,3 +1,5 @@
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 from llm_setting.config_paths import ConfigPaths
@@ -38,7 +40,8 @@ def test_search_work_space():
     if cmd not in cmd_invoke:
         raise ValueError(f"不支持的命令：{cmd}")
     result = cmd_invoke.get(cmd)
-    print(result)
+    json_str = json.dumps(asdict(result), ensure_ascii=False, indent=2)
+    print(json_str)
     # result = setting_handler.search()
 
 # print("=== 添加 Workspace Setting ===")
