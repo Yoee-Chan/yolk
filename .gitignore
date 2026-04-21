@@ -1,0 +1,10 @@
+.idea/
+node_modules
+dist
+.npmrc
+package-lock.json
+.env
+dist-electron
+agent.spec
+agent_tools.spec
+/agent-controller/build/

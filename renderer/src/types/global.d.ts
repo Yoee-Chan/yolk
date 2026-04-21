@@ -13,8 +13,8 @@ declare global {
             onPythonInputEcho?: (callback: (data: string) => void) => void;
 
             selectFolder: () => Promise<string | null>;
-            llmSetting: (Param: string) => Promise<string[]>;
-            scanWorkspace: (Param: string) => Promise<string[]>;
+            llmSetting: (Param: string) => Promise<string>;
+            scanWorkspace: (Param: string) => Promise<WorkingSpace>;
         };
     }
 }

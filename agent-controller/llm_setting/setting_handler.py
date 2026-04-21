@@ -47,9 +47,9 @@ class SettingHandler():
 
     def search(self) -> list:
         try:
+            logging.info(self.repo.list())
             return self.repo.list()
         except Exception as e:
-            print(e)
             # logging.error(f"Get an error when search---{self.setting_type}--{e}")
             return []
 

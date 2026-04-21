@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import json
+from dataclasses import asdict
 
 from llm_setting.setting_handler import SettingHandler
 from registrar.tools_request_registry import get_cmd
@@ -50,10 +51,12 @@ def main():
             else:
                 return str(r)
 
+        # safe_result(result)
+
         print(json.dumps({
             "type": "command_result",
             "cmd": setting_type,
-            "result": safe_result(result)
+            "result": json.dumps(asdict(result), ensure_ascii=False, indent=2)
         }), flush=True)
 
     except Exception as e:
