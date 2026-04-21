@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Dict
@@ -10,7 +11,7 @@ from .data_models import (
     WorkspaceSettingUpdate,
     MCPSetting,
     MCPSettingCreate,
-    MCPSettingUpdate, WorkspaceParam, MCPParam, WorkspaceConfig,
+    MCPSettingUpdate, WorkspaceParam, MCPParam, WorkspaceConfig, SubPathConfig,
 )
 
 TCreate = TypeVar("TCreate")
@@ -51,15 +52,20 @@ class WorkspaceSettingRepository(
         super().__init__(json_path)
         self._store: Dict[str, WorkspaceSetting] = {}
 
-    def add(self, data: WorkspaceSettingCreate) -> WorkspaceSetting:
-        new_id = str(uuid.uuid4())
-        setting = WorkspaceSetting(
-            path=data.path,
-            sandbox=data.sandbox,
-            sub_path=[]
-        )
-        self._store[new_id] = setting
-        return setting
+    def add(self, data: WorkspaceSettingCreate) -> bool:
+        try:
+            super().load(WorkspaceConfig)
+            result: WorkspaceConfig = super().get_store()
+            temp = SubPathConfig(
+                subPathName=data.path,
+                permission="ro"
+            )
+            result.subPath.append(temp)
+            super().save()
+        except Exception as e:
+            logging.error(e)
+            return False
+        return True
 
     def update(self, path: WorkspaceParam, data: WorkspaceSettingUpdate) -> WorkspaceSetting:
         setting = self._store[path.path]

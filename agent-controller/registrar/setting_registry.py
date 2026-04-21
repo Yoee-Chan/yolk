@@ -6,14 +6,17 @@ from llm_setting.setting_factories import (
     MCPSettingFactory,
 )
 
-# 获取项目下的配置文件
-CURRENT_FILE = Path(__file__).resolve()
-ROOT_DIR = CURRENT_FILE.parents[1]
-LLM_CONFIG_DIR = ROOT_DIR
-WORKSPACES_FILE = LLM_CONFIG_DIR
-paths = ConfigPaths(WORKSPACES_FILE)
+
+def get_path():
+    # 获取项目下的配置文件
+    CURRENT_FILE = Path(__file__).resolve()
+    ROOT_DIR = CURRENT_FILE.parents[1]
+    LLM_CONFIG_DIR = ROOT_DIR
+    WORKSPACES_FILE = LLM_CONFIG_DIR
+    return ConfigPaths(WORKSPACES_FILE)
+
 
 SETTING_REGISTRY: dict[str, SettingFactory] = {
-    "workspace": WorkspaceSettingFactory(paths),
-    "mcp": MCPSettingFactory(paths),
+    "workspace": WorkspaceSettingFactory(get_path()),
+    "mcp": MCPSettingFactory(get_path()),
 }
