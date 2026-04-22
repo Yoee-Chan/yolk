@@ -44,6 +44,16 @@ def test_search_work_space():
     print(json_str)
     # result = setting_handler.search()
 
+
+def test_add_workspace():
+    args = {"path": "C:/Users/yoeec/Desktop/workSpace/create-test"}
+    cmd = "add"
+    work_space1 = SettingHandler("workspace")
+    cmd_invoke = get_cmd(work_space1, args)
+    if cmd not in cmd_invoke:
+        raise ValueError(f"不支持的命令：{cmd}")
+    result = cmd_invoke.get(cmd)
+
 # print("=== 添加 Workspace Setting ===")
 # ws = handle_setting_request(
 #     setting_type="workspace",

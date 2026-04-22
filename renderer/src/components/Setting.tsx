@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Card, Typography, Button, Flex, Space, Input, Select, Form, Slider, Radio} from 'antd';
+import {Card, Typography, Button, Flex, Space, Input, Select, Form, Slider, Radio, Modal} from 'antd';
 import {
     EditOutlined,
     DeleteOutlined,
@@ -44,11 +44,6 @@ interface WorkingSpace {
     workSpace: string,
     subPath: SuPath[]
 }
-
-// interface SuPath {
-//     subPathName: string,
-//     permission: string
-// }
 
 class SubPath {
     name: string | undefined;
@@ -95,8 +90,8 @@ export default function Setting() {
 
             ws.subPath.forEach((subPath: SuPath) => {
                 const subPathName: string[] = subPath.subPathName.split(/[\\/]+/)
-                const  subPathItem:SubPath={
-                    name:subPathName[subPathName.length - 1],
+                const subPathItem: SubPath = {
+                    name: subPathName[subPathName.length - 1],
                     permission: subPath.permission
                 }
                 subPathDisPlayName.push(subPathItem)
@@ -119,7 +114,14 @@ export default function Setting() {
     };
 
     const onCreate = (): void => {
-        console.log("create new directory");
+        setIsModalWorkSpaceOpen(true)
+    };
+    const handleWorkspaceOk = (values: any) => {
+        setIsModalWorkSpaceOpen(false);
+    };
+
+    const handleWorkspaceCancel = () => {
+        setIsModalWorkSpaceOpen(false);
     };
 
     const [path, setPath] = useState("/Users/chan/workspace1")
@@ -129,6 +131,9 @@ export default function Setting() {
         {name: 'plugins', permission: 'rw'},
         {name: 'logs', permission: 'ro'},
     ]);
+    const [form] = Form.useForm();
+    const [workspaceform] = Form.useForm();
+    const [isModalWorkSpaceOpen, setIsModalWorkSpaceOpen] = useState(false);
 
     // ====== MCP 配置状态 ======
     const [config, setConfig] = useState<MCPConfig>({
@@ -140,7 +145,6 @@ export default function Setting() {
         }
     });
     const [formVisible, setFormVisible] = useState(false);
-    const [form] = Form.useForm();
     const handleAddServer = (values: { name: string; type: string; url: string }) => {
         setConfig(prev => ({
             mcpServers: {
@@ -182,8 +186,8 @@ export default function Setting() {
     //=======风险等级配置===========
     const [riskLevel, setRiskLevel] = useState<number>(5); // 默认中级 (medium)
     const [confirmStrategy, setConfirmStrategy] = useState<string>("high");
-
     return (
+
         <div className="setting">
             {/*工作域 - WorkSpace*/}
             <div>
@@ -233,9 +237,37 @@ export default function Setting() {
                                 </Flex>
                             ))}
                         </div>
+                        <Modal
+                            title="新建问价夹"
+                            open={isModalWorkSpaceOpen}
+                            onOk={() => {
+                                workspaceform.validateFields().then(values => {
+                                    console.log(values);
+                                    handleWorkspaceOk(values);
+                                });
+                            }}
+                            onCancel={handleWorkspaceCancel}
+                        >
+                            <Form form={workspaceform} layout="vertical">
+                                <Form.Item
+                                    label="问价夹名称"
+                                    name="folderName"
+                                    rules={[{required: true, message: '请输入问价夹名称'}]}
+                                >
+                                    <Input placeholder="请输入名称"/>
+                                </Form.Item>
 
+                                <Form.Item label="权限" name="permission" initialValue="read">
+                                    <Radio.Group>
+                                        <Radio value="read">只读</Radio>
+                                        <Radio value="write">读写</Radio>
+                                    </Radio.Group>
+                                </Form.Item>
+                            </Form>
+                        </Modal>
 
                     </div>
+
 
                     {/* 创建新目录 */}
                     <Button

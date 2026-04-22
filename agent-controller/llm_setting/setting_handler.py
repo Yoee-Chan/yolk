@@ -14,16 +14,16 @@ class SettingHandler():
         self.factory = factory
 
     def add(self, data: dict[str, Any]) -> bool:
-        ...
-        # try:
-        #     CreateModel = self.factory.get_create_model()
-        #     create_obj = CreateModel(**data)
-        #     self.validator.validate_create(create_obj)
-        #     self.repo.add(create_obj)
-        #     return True
-        # except Exception as e:
-        #     logging.error(f"Get an error when add---{self.setting_type}--{e}")
-        #     return False
+        try:
+            CreateModel = self.factory.get_create_model()
+            create_obj = CreateModel(**data)
+            self.validator.validate_create(create_obj)
+
+            self.repo.add(create_obj)
+            return True
+        except Exception as e:
+            logging.error(f"Get an error when add---{self.setting_type}--{e}")
+            return False
 
     def update(self, data: dict[str, Any]) -> bool:
         ...
@@ -47,7 +47,6 @@ class SettingHandler():
 
     def search(self) -> list:
         try:
-            logging.info(self.repo.list())
             return self.repo.list()
         except Exception as e:
             # logging.error(f"Get an error when search---{self.setting_type}--{e}")

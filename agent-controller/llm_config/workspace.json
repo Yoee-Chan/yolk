@@ -8,6 +8,10 @@
     {
       "subPathName": "C:\\Users\\yoeec\\Desktop\\workSpace\\merge excel",
       "permission": "rw"
+    },
+    {
+      "subPathName": "C:/Users/yoeec/Desktop/workSpace/create-test",
+      "permission": "ro"
     }
   ]
 }
