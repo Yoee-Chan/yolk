@@ -1,19 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {
-    Card,
-    Typography,
-    Button,
-    Flex,
-    Space,
-    Input,
-    Select,
-    Form,
-    Slider,
-    Radio,
-    Modal,
-    PopconfirmProps,
-    message, Popconfirm
-} from 'antd';
+import {Card, Typography, Button, Flex, Space, Input, Select, Form, Slider, Radio, Modal, PopconfirmProps, message, Popconfirm} from 'antd';
 import {
     EditOutlined,
     DeleteOutlined,
