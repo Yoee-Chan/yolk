@@ -58,7 +58,7 @@ class WorkspaceSettingRepository(
             result: WorkspaceConfig = super().get_store()
             temp = SubPathConfig(
                 subPathName=data.path,
-                permission="ro"
+                permission=data.permission
             )
             result.subPath.append(temp)
             super().save()
