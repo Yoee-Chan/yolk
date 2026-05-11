@@ -175,10 +175,10 @@ class MCPAgent(ToolCallAgent):
             await self.mcp_clients.disconnect()
             logger.info("MCP connection closed")
 
-    async def run(self, request: Optional[str] = None) -> str:
+    async def run(self, request: Optional[str] = None, **kwargs) -> str:
         """Run the agent with cleanup when done."""
         try:
-            result = await super().run(request)
+            result = await super().run(request, **kwargs)
             return result
         finally:
             # Ensure cleanup happens even if there's an error

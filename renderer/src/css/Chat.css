@@ -36,3 +36,89 @@
     border-radius: 6px;
     cursor: pointer;
 }
+
+.chat-input button.chat-cancel {
+    background: #64748b;
+}
+
+.chat-input button.chat-cancel:hover {
+    background: #475569;
+}
+
+/* 单次运行：模型计划（可折叠）+ 连接信息 */
+.chat-diag {
+    margin: 12px 0;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #334155;
+}
+
+.chat-diag-plan {
+    margin-bottom: 10px;
+}
+
+.chat-diag-plan:last-child {
+    margin-bottom: 0;
+}
+
+.chat-diag-plan > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #0f172a;
+    user-select: none;
+    list-style: none;
+}
+
+.chat-diag-plan > summary::-webkit-details-marker {
+    display: none;
+}
+
+.chat-diag-plan > summary::before {
+    content: '▸ ';
+    display: inline-block;
+    transition: transform 0.15s ease;
+}
+
+.chat-diag-plan[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.chat-diag-pre {
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #475569;
+}
+
+.chat-diag-conn {
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.chat-diag > .chat-diag-conn:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.chat-diag-plan + .chat-diag-conn {
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.chat-diag-conn-title {
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.chat-diag-conn-pre {
+    margin-top: 0;
+    max-height: 220px;
+    overflow-y: auto;
+}

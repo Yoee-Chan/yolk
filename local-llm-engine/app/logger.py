@@ -21,7 +21,12 @@ def define_log_level(print_level="INFO", logfile_level="DEBUG", name: str = None
     )  # name a log with prefix name
 
     _logger.remove()
-    # _logger.add(sys.stderr, level=print_level)
+    # 同步到 stderr，便于 Yolk 前端「连接信息 / 模型计划」解析（与 stdout 协议行分离）
+    _logger.add(
+        sys.stderr,
+        level=print_level,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}\n",
+    )
     _logger.add(PROJECT_ROOT / f"logs/{log_name}.log", level=logfile_level)
     return _logger
 

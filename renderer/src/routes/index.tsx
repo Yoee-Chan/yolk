@@ -6,6 +6,7 @@ const routes: RouteObject[] = [
     {
         path: "/",
         element: <Main/>,
+        // element: <Demo/>,
     },
     {
         path: "/demo",

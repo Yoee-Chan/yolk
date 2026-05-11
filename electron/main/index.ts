@@ -8,7 +8,7 @@ let py: ChildProcessWithoutNullStreams | null = null  //  正确类型
 function getStreamPythonCommand() {
     if (!app.isPackaged) {
         return {
-            command: 'agent-controller',
+            command: 'python',//agent-controller
             args: [path.join(process.cwd(), 'agent-controller/agent_stream.py')]
         }
     } else {
@@ -56,26 +56,62 @@ app.whenReady().then(() => {
 
     //  启动流式的Python
     ipcMain.on('run-agent-controller', (event, args) => {
+        if (py) {
+            try {
+                py.kill('SIGTERM')
+            } catch {
+                /* ignore */
+            }
+        }
+
         const {command, args: baseArgs} = getStreamPythonCommand()
 
-        py = spawn(command, baseArgs, {
+        const child = spawn(command, baseArgs, {
             cwd: process.cwd()
         })
+        py = child
 
-        py.stdin.write(JSON.stringify({event: "init_app"}) + '\n')
+        const msg =
+            typeof args?.msg === 'string' ? args.msg : typeof args === 'string' ? args : ''
+        const history = Array.isArray((args as {history?: unknown})?.history)
+            ? (args as {history: unknown[]}).history
+            : []
+        child.stdin.write(JSON.stringify({event: 'run', msg, history}) + '\n')
 
-        py.stdout.on('data', data => {
+        child.stdout.on('data', data => {
             event.sender.send('agent-controller-stream', data.toString())
         })
 
-        py.stderr.on('data', err => {
+        child.stderr.on('data', err => {
             event.sender.send('agent-controller-error', err.toString())
         })
 
-        py.on('close', code => {
+        child.on('error', () => {
+            if (py !== child) {
+                return
+            }
+            py = null
+            event.sender.send('agent-controller-exit', -1)
+        })
+
+        child.on('close', code => {
+            if (py !== child) {
+                return
+            }
             event.sender.send('agent-controller-exit', code)
             py = null
         })
+    })
+
+    ipcMain.on('cancel-agent-controller', () => {
+        if (!py) {
+            return
+        }
+        try {
+            py.kill('SIGTERM')
+        } catch {
+            /* ignore */
+        }
     })
 
 

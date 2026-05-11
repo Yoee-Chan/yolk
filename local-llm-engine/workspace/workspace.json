@@ -3,7 +3,7 @@
   "subPath": [
     {
       "subPathName": "C:\\Users\\yoeec\\Desktop\\workSpace\\browse img",
-      "permission": "rw"
+      "permission": "ro"
     },
     {
       "subPathName": "C:\\Users\\yoeec\\Desktop\\workSpace\\merge excel",
