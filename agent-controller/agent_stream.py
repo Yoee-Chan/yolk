@@ -3,8 +3,9 @@ import sys
 import json
 import asyncio
 import logging
+import queue
 import threading
-from typing import Optional
+from typing import Optional, Tuple
 import warnings
 from requests import RequestsDependencyWarning
 import io
@@ -18,12 +19,19 @@ warnings.filterwarnings("ignore", category=RequestsDependencyWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# 路径设置
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# 路径设置（PyInstaller 单文件：资源在 sys._MEIPASS；开发模式仍用源码目录下的 llm_config）
+if getattr(sys, "frozen", False):
+    SCRIPT_DIR = sys._MEIPASS
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _here = os.path.dirname(os.path.abspath(__file__))
+    SCRIPT_DIR = _here
+    BASE_DIR = os.path.abspath(os.path.join(_here, ".."))
+
 LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKSPACE_JSON = os.path.join(SCRIPT_DIR, "llm_config", "workspace.json")
-sys.path.insert(0, LLM_ENGINE_DIR)
+if not getattr(sys, "frozen", False):
+    sys.path.insert(0, LLM_ENGINE_DIR)
 
 # 在导入 Manus / browser_use 之前，把标准库日志打到 stderr，避免污染 stdout 协议行
 logging.basicConfig(
@@ -32,6 +40,14 @@ logging.basicConfig(
     stream=sys.stderr,
     force=True,
 )
+
+# PyPI 包名为 daytona_sdk，引擎内仍使用 `import daytona`
+try:
+    import daytona_sdk
+
+    sys.modules.setdefault("daytona", daytona_sdk)
+except ImportError:
+    pass
 
 from app.agent.manus import Manus
 from app.human_input_bridge import deliver_input
@@ -47,17 +63,36 @@ def _chat_step_should_stream(step_result: str) -> bool:
     return True
 
 
-def read_run_request() -> tuple[str, list]:
-    """读取首行 JSON：event=run, msg=当前用户句, history=可选多轮 [{role, content}, ...]。"""
-    line = sys.stdin.readline()
-    if not line:
-        return "", []
-    try:
-        payload = json.loads(line)
-    except json.JSONDecodeError:
-        return "", []
-    if payload.get("event") != "run":
-        return "", []
+# 只能有一个线程读 sys.stdin；原先主线程 readline 与后台 for stdin 抢同一管道，会导致 run 行丢失、界面永远卡住。
+_RUN_QUEUE = queue.Queue()
+
+
+def _stdin_router() -> None:
+    """单线程读 stdin：先处理带 id 的人类输入，其余 event=run 的放入队列给主循环。"""
+    for line in sys.stdin:
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            msg = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(msg, dict):
+            continue
+        # 前端回复 need_input / ask_human
+        if msg.get("id") is not None:
+            if deliver_input(str(msg["id"]), msg.get("data")):
+                continue
+        if msg.get("event") == "run":
+            _RUN_QUEUE.put(msg)
+    _RUN_QUEUE.put(None)
+
+
+def read_run_request() -> Optional[Tuple[str, list]]:
+    """从路由队列取一条 run 事件。stdin 关闭时返回 None。"""
+    payload = _RUN_QUEUE.get()
+    if payload is None:
+        return None
     user_task = (payload.get("msg") or "").strip()
     history = payload.get("history") or []
     if not isinstance(history, list):
@@ -90,21 +125,21 @@ def _format_chat_history(history: list) -> str:
     )
 
 
-def handle_stdin():
-    """监听前端后续输入（need_input / AskHuman）"""
-    for line in sys.stdin:
-        try:
-            msg = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        req_id = msg.get("id")
-        if req_id and deliver_input(req_id, msg.get("data")):
-            continue
-
-
 async def init_application(prompt: str):
     """调用大模型"""
     agent = await Manus.create()
+    # 给前端一条可见进度（stdout 协议），避免只看到 Daytona/MCP 日志却以为未请求模型
+    print(
+        json.dumps(
+            {
+                "type": "stream",
+                "text": "[系统] Agent 已就绪，正在请求语言模型…\n",
+            },
+            ensure_ascii=False,
+        )
+    )
+    sys.stdout.flush()
+
     streamed_any = False
 
     def on_step(step_result: str):
@@ -188,6 +223,17 @@ async def main(user_task: str, history: Optional[list] = None):
 
 
 if __name__ == "__main__":
-    user_task, history = read_run_request()
-    threading.Thread(target=handle_stdin, daemon=True, name="stdin-bridge").start()
-    asyncio.get_event_loop().run_until_complete(main(user_task, history))
+    threading.Thread(
+        target=_stdin_router, daemon=True, name="stdin-router"
+    ).start()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        while True:
+            req = read_run_request()
+            if req is None:
+                break
+            user_task, history = req
+            loop.run_until_complete(main(user_task, history))
+    finally:
+        loop.close()

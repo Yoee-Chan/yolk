@@ -23,6 +23,14 @@
 ┌───────────────────┴──────────────────────┐
 │        LLM（用户选择：本地/云端/MCP）      │
 └──────────────────────────────────────────┘
+```shell
+pip install structlog daytona-sdk
+cd agent-controller
+.\build_exe.bat
+cd ..
+npm run build:installer 
+
+```
 
 ```
 

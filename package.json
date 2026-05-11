@@ -9,6 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "build:win": "electron-builder --win",
+    "build:installer": "npm run build && npm run build:win",
     "preview": "electron-vite preview"
   },
   "dependencies": {
@@ -43,13 +44,16 @@
     ],
     "extraResources": [
       {
-        "from": "python/dist/agent.exe",
-        "to": "agent.exe"
+        "from": "agent-controller/dist/agent_stream.exe",
+        "to": "agent_stream.exe"
+      },
+      {
+        "from": "agent-controller/dist/agent_tools.exe",
+        "to": "agent_tools.exe"
       }
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {

@@ -1,9 +1,34 @@
-import {app, BrowserWindow, ipcMain, dialog} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog, WebContents} from 'electron'
 import path from 'path'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
 
-let py: ChildProcessWithoutNullStreams | null = null  //  正确类型
+let py: ChildProcessWithoutNullStreams | null = null
+/** 最近一次发起 agent 渲染进程的 WebContents，用于复用子进程时仍能推送 stdout/stderr */
+let streamSender: WebContents | null = null
+
+function attachAgentChildListeners(child: ChildProcessWithoutNullStreams) {
+    child.stdout.on('data', data => {
+        streamSender?.send('agent-controller-stream', data.toString())
+    })
+    child.stderr.on('data', err => {
+        streamSender?.send('agent-controller-error', err.toString())
+    })
+    child.on('error', () => {
+        if (py !== child) {
+            return
+        }
+        py = null
+        streamSender?.send('agent-controller-exit', -1)
+    })
+    child.on('close', code => {
+        if (py !== child) {
+            return
+        }
+        streamSender?.send('agent-controller-exit', code)
+        py = null
+    })
+}
 
 function getStreamPythonCommand() {
     if (!app.isPackaged) {
@@ -54,53 +79,49 @@ function createWindow() {
 app.whenReady().then(() => {
     createWindow()
 
-    //  启动流式的Python
     ipcMain.on('run-agent-controller', (event, args) => {
-        if (py) {
+        streamSender = event.sender
+        const interruptPrevious = Boolean(
+            (args as {interruptPrevious?: unknown})?.interruptPrevious
+        )
+
+        if (interruptPrevious && py && !py.killed) {
             try {
                 py.kill('SIGTERM')
             } catch {
                 /* ignore */
             }
+            py = null
         }
-
-        const {command, args: baseArgs} = getStreamPythonCommand()
-
-        const child = spawn(command, baseArgs, {
-            cwd: process.cwd()
-        })
-        py = child
 
         const msg =
             typeof args?.msg === 'string' ? args.msg : typeof args === 'string' ? args : ''
         const history = Array.isArray((args as {history?: unknown})?.history)
             ? (args as {history: unknown[]}).history
             : []
-        child.stdin.write(JSON.stringify({event: 'run', msg, history}) + '\n')
 
-        child.stdout.on('data', data => {
-            event.sender.send('agent-controller-stream', data.toString())
-        })
+        const needSpawn = !py || py.killed
+        if (needSpawn) {
+            const {command, args: baseArgs} = getStreamPythonCommand()
+            const child = spawn(command, baseArgs, {
+                cwd: process.cwd()
+            })
+            py = child
+            attachAgentChildListeners(child)
+        }
 
-        child.stderr.on('data', err => {
-            event.sender.send('agent-controller-error', err.toString())
-        })
-
-        child.on('error', () => {
-            if (py !== child) {
-                return
-            }
-            py = null
-            event.sender.send('agent-controller-exit', -1)
-        })
-
-        child.on('close', code => {
-            if (py !== child) {
-                return
-            }
-            event.sender.send('agent-controller-exit', code)
-            py = null
-        })
+        const payload = JSON.stringify({event: 'run', msg, history}) + '\n'
+        try {
+            py!.stdin.write(payload)
+        } catch {
+            const {command, args: baseArgs} = getStreamPythonCommand()
+            const child = spawn(command, baseArgs, {
+                cwd: process.cwd()
+            })
+            py = child
+            attachAgentChildListeners(child)
+            py.stdin.write(payload)
+        }
     })
 
     ipcMain.on('cancel-agent-controller', () => {

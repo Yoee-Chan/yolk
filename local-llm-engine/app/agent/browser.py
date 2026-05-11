@@ -8,7 +8,6 @@ from app.logger import logger
 from app.prompt.browser import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message, ToolChoice
 from app.tool import BrowserUseTool, Terminate, ToolCollection
-from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
 
 
 # Avoid circular import if BrowserAgent needs BrowserContextHelper
@@ -22,6 +21,9 @@ class BrowserContextHelper:
         self._current_base64_image: Optional[str] = None
 
     async def get_browser_state(self) -> Optional[dict]:
+        # 延迟导入：避免 Manus 启动时加载 Daytona / sandbox（与本地对话无关且可能拖慢启动）
+        from app.tool.sandbox.sb_browser_tool import SandboxBrowserTool
+
         browser_tool = self.agent.available_tools.get_tool(BrowserUseTool().name)
         if not browser_tool:
             browser_tool = self.agent.available_tools.get_tool(

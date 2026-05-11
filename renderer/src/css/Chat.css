@@ -122,3 +122,99 @@
     max-height: 220px;
     overflow-y: auto;
 }
+
+/* Electron 不支持 window.prompt：need_input 用覆盖层收集回复 */
+.chat-human-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+    padding: 24px;
+}
+
+.chat-human-modal {
+    width: min(520px, 100%);
+    max-height: min(90vh, 560px);
+    overflow: auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    padding: 20px;
+}
+
+.chat-human-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #0f172a;
+    margin-bottom: 12px;
+}
+
+.chat-human-prompt {
+    margin: 0 0 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #334155;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.chat-human-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 88px;
+}
+
+.chat-human-textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.chat-human-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.chat-human-actions button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.chat-human-cancel {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.chat-human-cancel:hover {
+    background: #cbd5e1;
+}
+
+.chat-human-ok {
+    background: #2563eb;
+    color: #fff;
+}
+
+.chat-human-ok:hover {
+    background: #1d4ed8;
+}

@@ -778,6 +778,12 @@ class LLM:
                 )
 
             params["stream"] = False  # Always use non-streaming for tool requests
+            logger.info(
+                "Calling LLM chat.completions (model=%s, base_url=%s, timeout=%ss)",
+                self.model,
+                self.base_url,
+                timeout,
+            )
             response: ChatCompletion = await self.client.chat.completions.create(
                 **params
             )

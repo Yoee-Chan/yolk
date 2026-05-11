@@ -1,5 +1,10 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import '../css/Chat.css';
+
+type PendingHumanInput = {
+    id: string;
+    promptText: string;
+};
 
 type TextMessage = {
     kind: 'text';
@@ -104,10 +109,15 @@ export default function Chat() {
         {
             kind: 'text',
             role: 'assistant',
-            content: '在下方输入问题，会通过 agent-controller 调用本机 LLM。',
+            content:
+                '在下方输入问题，会通过 agent-controller 连接 local-llm-engine 使用的模型（请在 local-llm-engine/config/config.toml 配置 base_url）。首次发送会启动 Python 子进程；后续在同一会话内会继续往该进程写入对话，实现多轮上下文。',
         },
     ]);
     const [busy, setBusy] = useState(false);
+    const [pendingHumanInput, setPendingHumanInput] =
+        useState<PendingHumanInput | null>(null);
+    const [humanDraft, setHumanDraft] = useState('');
+    const humanInputRef = useRef<HTMLTextAreaElement | null>(null);
     const stdoutCarry = useRef('');
     const stderrCarry = useRef('');
     const sawProtocolPayload = useRef(false);
@@ -159,12 +169,44 @@ export default function Chat() {
             if (t === 'need_input' && msg.id != null) {
                 const prompt =
                     typeof msg.text === 'string' ? msg.text : '需要你的输入';
-                const answer = window.prompt(prompt);
-                window.api.sendPythonInput({id: msg.id, data: answer ?? ''});
+                setHumanDraft('');
+                setPendingHumanInput({id: String(msg.id), promptText: prompt});
             }
         },
         [appendAssistant]
     );
+
+    useEffect(() => {
+        if (!pendingHumanInput) {
+            return;
+        }
+        const t = window.setTimeout(() => humanInputRef.current?.focus(), 50);
+        return () => window.clearTimeout(t);
+    }, [pendingHumanInput]);
+
+    const submitHumanInput = () => {
+        if (!pendingHumanInput) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingHumanInput.id,
+            data: humanDraft,
+        });
+        setPendingHumanInput(null);
+        setHumanDraft('');
+    };
+
+    const cancelHumanInput = () => {
+        if (!pendingHumanInput) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingHumanInput.id,
+            data: '',
+        });
+        setPendingHumanInput(null);
+        setHumanDraft('');
+    };
 
     const appendStderrLines = useCallback((lines: string[]) => {
         const runId = runIdRef.current;
@@ -219,6 +261,11 @@ export default function Chat() {
             return;
         }
 
+        if (busy) {
+            setPendingHumanInput(null);
+            setHumanDraft('');
+        }
+
         runIdRef.current += 1;
         const runId = runIdRef.current;
 
@@ -243,7 +290,11 @@ export default function Chat() {
         sawProtocolPayload.current = false;
 
         window.api.runPython(
-            {msg: text, history: historyForApi},
+            {
+                msg: text,
+                history: historyForApi,
+                interruptPrevious: busy,
+            },
 
             (data) => {
                 const {lines, carry} = parseLineBuffer(stdoutCarry.current, data);
@@ -268,6 +319,8 @@ export default function Chat() {
 
             (code) => {
                 setBusy(false);
+                setPendingHumanInput(null);
+                setHumanDraft('');
                 const tailOut = stdoutCarry.current.trim();
                 if (tailOut) {
                     const payload = parseProtocolLine(tailOut);
@@ -307,6 +360,57 @@ export default function Chat() {
 
     return (
         <div className="chat">
+            {pendingHumanInput ? (
+                <div
+                    className="chat-human-overlay"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="chat-human-title"
+                >
+                    <div className="chat-human-modal">
+                        <div id="chat-human-title" className="chat-human-title">
+                            智能体请求输入
+                        </div>
+                        <pre className="chat-human-prompt">
+                            {pendingHumanInput.promptText}
+                        </pre>
+                        <textarea
+                            ref={humanInputRef}
+                            className="chat-human-textarea"
+                            rows={4}
+                            value={humanDraft}
+                            onChange={(e) => setHumanDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    submitHumanInput();
+                                }
+                                if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelHumanInput();
+                                }
+                            }}
+                            placeholder="在此输入回复…（Enter 提交，Shift+Enter 换行，Esc 取消）"
+                        />
+                        <div className="chat-human-actions">
+                            <button
+                                type="button"
+                                className="chat-human-cancel"
+                                onClick={cancelHumanInput}
+                            >
+                                跳过（发送空内容）
+                            </button>
+                            <button
+                                type="button"
+                                className="chat-human-ok"
+                                onClick={submitHumanInput}
+                            >
+                                提交
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             <div className="chat-body">
                 {messages.map((m, i) => {
                     if (m.kind === 'diag') {
