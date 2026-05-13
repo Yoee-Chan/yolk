@@ -6,6 +6,7 @@ import {is} from '@electron-toolkit/utils'
 let py: ChildProcessWithoutNullStreams | null = null
 /** 最近一次发起 agent 渲染进程的 WebContents，用于复用子进程时仍能推送 stdout/stderr */
 let streamSender: WebContents | null = null
+let mainWindow: BrowserWindow | null = null
 
 function attachAgentChildListeners(child: ChildProcessWithoutNullStreams) {
     child.stdout.on('data', data => {
@@ -67,12 +68,29 @@ function createWindow() {
             preload: path.join(__dirname, '../preload/index.js')
         }
     })
+    mainWindow = win
 
     if (is.dev) {
         win.loadURL(process.env['ELECTRON_RENDERER_URL']!)
         win.webContents.openDevTools()
     } else {
         win.loadFile(path.join(__dirname, '../../dist/renderer/index.html'))
+    }
+}
+
+/** 启动 agent_stream 子进程（阻塞在 stdin 等首条 run）；应用启动时预热，首条消息可更快开始推理 */
+function ensureAgentStreamProcess() {
+    if (py && !py.killed) {
+        return
+    }
+    const {command, args: baseArgs} = getStreamPythonCommand()
+    const child = spawn(command, baseArgs, {
+        cwd: process.cwd()
+    })
+    py = child
+    attachAgentChildListeners(child)
+    if (!streamSender && mainWindow && !mainWindow.isDestroyed()) {
+        streamSender = mainWindow.webContents
     }
 }
 
@@ -100,27 +118,15 @@ app.whenReady().then(() => {
             ? (args as {history: unknown[]}).history
             : []
 
-        const needSpawn = !py || py.killed
-        if (needSpawn) {
-            const {command, args: baseArgs} = getStreamPythonCommand()
-            const child = spawn(command, baseArgs, {
-                cwd: process.cwd()
-            })
-            py = child
-            attachAgentChildListeners(child)
-        }
+        ensureAgentStreamProcess()
 
         const payload = JSON.stringify({event: 'run', msg, history}) + '\n'
         try {
             py!.stdin.write(payload)
         } catch {
-            const {command, args: baseArgs} = getStreamPythonCommand()
-            const child = spawn(command, baseArgs, {
-                cwd: process.cwd()
-            })
-            py = child
-            attachAgentChildListeners(child)
-            py.stdin.write(payload)
+            py = null
+            ensureAgentStreamProcess()
+            py!.stdin.write(payload)
         }
     })
 
@@ -200,5 +206,5 @@ app.whenReady().then(() => {
         })
     })
 
-
+    ensureAgentStreamProcess()
 })

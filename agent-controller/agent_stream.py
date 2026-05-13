@@ -50,7 +50,9 @@ except ImportError:
     pass
 
 from app.agent.manus import Manus
-from app.human_input_bridge import deliver_input
+from app.human_input_bridge import deliver_input, wait_plan_confirm
+from app.llm import LLM
+from app.schema import Message
 
 
 def _chat_step_should_stream(step_result: str) -> bool:
@@ -68,7 +70,7 @@ _RUN_QUEUE = queue.Queue()
 
 
 def _stdin_router() -> None:
-    """单线程读 stdin：先处理带 id 的人类输入，其余 event=run 的放入队列给主循环。"""
+    """单线程读 stdin：人类输入（need_input / need_plan_confirm）、其余 event=run 放入队列。"""
     for line in sys.stdin:
         raw = line.strip()
         if not raw:
@@ -122,6 +124,43 @@ def _format_chat_history(history: list) -> str:
         "Continue naturally; the user's latest message is after this block.\n\n"
         + "\n\n".join(lines)
         + "\n\n---\n"
+    )
+
+
+_PLANNER_SYSTEM = """你是任务规划师，只做「规划与说明」，不要执行任何工具、不要写代码、不要假装已完成操作。
+请根据用户的当前请求与会话摘要，用简体中文输出 Markdown，且必须包含以下小节（若无内容则写「无」）：
+## 执行计划
+（分步骤、可检查；若需求不清，列出合理假设并标注「待确认」）
+## 所需权限与数据访问
+（例如：读/写工作区内哪些路径、是否需要网络、浏览器、终端、外部应用等）
+## 将使用的程序或应用
+（例如：Python、浏览器自动化、Outlook、MCP 工具名等；没有则写「无」）
+
+约束：不得编造用户未要求的操作；保持与工作区规则一致。除上述结构外不要输出多余客套话。"""
+
+
+async def _generate_execution_plan(
+    workspace_data: str,
+    workspace_json_repr: str,
+    history_block: str,
+    user_task: str,
+) -> str:
+    user_blob = f"""工作区配置文件路径（只读引用）: {workspace_json_repr}
+
+工作区 JSON 内容摘要（遵守其中路径与权限）:
+{workspace_data}
+
+{history_block}
+
+用户当前任务:
+{user_task}
+"""
+    llm = LLM()
+    return await llm.ask(
+        [Message.user_message(user_blob.strip())],
+        system_msgs=[Message.system_message(_PLANNER_SYSTEM)],
+        stream=False,
+        temperature=0.3,
     )
 
 
@@ -218,7 +257,84 @@ async def main(user_task: str, history: Optional[list] = None):
     {workspace_data}
 
 """
-    prompt = base + history_block + "\nCurrent user message:\n" + user_task
+    print(
+        json.dumps(
+            {
+                "type": "stream",
+                "text": "[系统] 正在生成执行计划、所需权限与将使用的应用（尚未执行任何操作）…\n",
+            },
+            ensure_ascii=False,
+        )
+    )
+    sys.stdout.flush()
+
+    try:
+        plan_text = await _generate_execution_plan(
+            workspace_data, workspace_json_repr, history_block, user_task
+        )
+    except Exception as e:
+        logging.exception("生成执行计划失败")
+        print(
+            json.dumps(
+                {"type": "error", "text": f"生成执行计划失败: {e}"},
+                ensure_ascii=False,
+            )
+        )
+        sys.stdout.flush()
+        return
+
+    plan_text = (plan_text or "").strip()
+    if not plan_text:
+        print(
+            json.dumps(
+                {"type": "error", "text": "模型未返回有效执行计划"},
+                ensure_ascii=False,
+            )
+        )
+        sys.stdout.flush()
+        return
+
+    approved = await wait_plan_confirm(plan_text)
+    if not approved:
+        print(
+            json.dumps(
+                {
+                    "type": "stream",
+                    "text": "[系统] 你已取消执行，未启动智能体，也未调用任何工具。\n",
+                },
+                ensure_ascii=False,
+            )
+        )
+        sys.stdout.flush()
+        print(json.dumps({"type": "done"}, ensure_ascii=False))
+        sys.stdout.flush()
+        return
+
+    print(
+        json.dumps(
+            {
+                "type": "stream",
+                "text": "[系统] 已确认计划，正在启动 Agent 按步骤执行…\n",
+            },
+            ensure_ascii=False,
+        )
+    )
+    sys.stdout.flush()
+
+    approved_block = f"""
+---
+【用户已确认的执行计划】以下计划经用户确认后执行。请严格按计划推进；不得超出已确认范围擅自扩大任务。若执行中必须偏离计划，须先通过 ask_human 向用户说明原因并征求意见。
+
+{plan_text}
+---
+"""
+    prompt = (
+        base
+        + history_block
+        + approved_block
+        + "\nCurrent user message:\n"
+        + user_task
+    )
     await init_application(prompt)
 
 

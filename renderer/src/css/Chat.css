@@ -5,11 +5,23 @@
     flex-direction: column;
 }
 
-/* 聊天内容 */
+/* 聊天内容（与 main.css 保持一致，避免 import 顺序覆盖字体） */
 .chat-body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        'PingFang SC',
+        'Hiragino Sans GB',
+        'Microsoft YaHei',
+        'Noto Sans SC',
+        sans-serif;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* 输入框 */
@@ -217,4 +229,15 @@
 
 .chat-human-ok:hover {
     background: #1d4ed8;
+}
+
+.chat-plan-hint {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #475569;
+}
+
+.chat-plan-body {
+    max-height: min(420px, 55vh);
 }

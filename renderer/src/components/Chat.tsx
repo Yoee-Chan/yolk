@@ -6,6 +6,11 @@ type PendingHumanInput = {
     promptText: string;
 };
 
+type PendingPlanConfirm = {
+    id: string;
+    planText: string;
+};
+
 type TextMessage = {
     kind: 'text';
     role: 'user' | 'assistant';
@@ -32,8 +37,13 @@ const PROTOCOL_TYPES = new Set([
     'error',
     'stream',
     'need_input',
+    'need_plan_confirm',
     'done',
 ]);
+
+/** 与 agent-controller / human_input_bridge 约定 */
+const PLAN_DECISION_CONFIRM = '__PLAN_CONFIRM__';
+const PLAN_DECISION_CANCEL = '__PLAN_CANCEL__';
 
 function parseProtocolLine(trimmed: string): StreamPayload | null {
     if (!trimmed.startsWith('{')) {
@@ -110,12 +120,14 @@ export default function Chat() {
             kind: 'text',
             role: 'assistant',
             content:
-                '在下方输入问题，会通过 agent-controller 连接 local-llm-engine 使用的模型（请在 local-llm-engine/config/config.toml 配置 base_url）。首次发送会启动 Python 子进程；后续在同一会话内会继续往该进程写入对话，实现多轮上下文。',
+                '在下方输入问题后，系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具。取消则不会执行任何操作。模型通过 agent-controller 连接 local-llm-engine（请在 local-llm-engine/config/config.toml 配置 base_url）；应用启动时会预热 Python 子进程。',
         },
     ]);
     const [busy, setBusy] = useState(false);
     const [pendingHumanInput, setPendingHumanInput] =
         useState<PendingHumanInput | null>(null);
+    const [pendingPlanConfirm, setPendingPlanConfirm] =
+        useState<PendingPlanConfirm | null>(null);
     const [humanDraft, setHumanDraft] = useState('');
     const humanInputRef = useRef<HTMLTextAreaElement | null>(null);
     const stdoutCarry = useRef('');
@@ -156,14 +168,18 @@ export default function Chat() {
                 return;
             }
             if (t === 'done') {
+                // 子进程常驻等下一条 run；单次推理结束以 done 为准，否则 busy 会一直为 true
+                setBusy(false);
                 return;
             }
             if (t === 'result' && typeof msg.text === 'string') {
                 appendAssistant(msg.text);
+                setBusy(false);
                 return;
             }
             if (t === 'error' && typeof msg.text === 'string') {
                 appendAssistant(`[错误] ${msg.text}`);
+                setBusy(false);
                 return;
             }
             if (t === 'need_input' && msg.id != null) {
@@ -171,6 +187,15 @@ export default function Chat() {
                     typeof msg.text === 'string' ? msg.text : '需要你的输入';
                 setHumanDraft('');
                 setPendingHumanInput({id: String(msg.id), promptText: prompt});
+                return;
+            }
+            if (t === 'need_plan_confirm' && msg.id != null) {
+                const planText =
+                    typeof msg.text === 'string' ? msg.text : '';
+                setPendingPlanConfirm({
+                    id: String(msg.id),
+                    planText,
+                });
             }
         },
         [appendAssistant]
@@ -207,6 +232,46 @@ export default function Chat() {
         setPendingHumanInput(null);
         setHumanDraft('');
     };
+
+    const submitPlanConfirm = useCallback(() => {
+        if (!pendingPlanConfirm) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingPlanConfirm.id,
+            data: PLAN_DECISION_CONFIRM,
+        });
+        setPendingPlanConfirm(null);
+    }, [pendingPlanConfirm]);
+
+    const cancelPlanConfirm = useCallback(() => {
+        if (!pendingPlanConfirm) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingPlanConfirm.id,
+            data: PLAN_DECISION_CANCEL,
+        });
+        setPendingPlanConfirm(null);
+    }, [pendingPlanConfirm]);
+
+    useEffect(() => {
+        if (!pendingPlanConfirm) {
+            return;
+        }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                window.api.sendPythonInput({
+                    id: pendingPlanConfirm.id,
+                    data: PLAN_DECISION_CANCEL,
+                });
+                setPendingPlanConfirm(null);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [pendingPlanConfirm]);
 
     const appendStderrLines = useCallback((lines: string[]) => {
         const runId = runIdRef.current;
@@ -263,6 +328,7 @@ export default function Chat() {
 
         if (busy) {
             setPendingHumanInput(null);
+            setPendingPlanConfirm(null);
             setHumanDraft('');
         }
 
@@ -320,6 +386,7 @@ export default function Chat() {
             (code) => {
                 setBusy(false);
                 setPendingHumanInput(null);
+                setPendingPlanConfirm(null);
                 setHumanDraft('');
                 const tailOut = stdoutCarry.current.trim();
                 if (tailOut) {
@@ -360,7 +427,42 @@ export default function Chat() {
 
     return (
         <div className="chat">
-            {pendingHumanInput ? (
+            {pendingPlanConfirm ? (
+                <div
+                    className="chat-human-overlay"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="chat-plan-title"
+                >
+                    <div className="chat-human-modal">
+                        <div id="chat-plan-title" className="chat-human-title">
+                            请确认执行计划
+                        </div>
+                        <p className="chat-plan-hint">
+                            确认后将启动智能体并按计划调用工具；取消则不会执行任何操作。
+                        </p>
+                        <pre className="chat-human-prompt chat-plan-body">
+                            {pendingPlanConfirm.planText}
+                        </pre>
+                        <div className="chat-human-actions">
+                            <button
+                                type="button"
+                                className="chat-human-cancel"
+                                onClick={cancelPlanConfirm}
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                className="chat-human-ok"
+                                onClick={submitPlanConfirm}
+                            >
+                                确认执行
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : pendingHumanInput ? (
                 <div
                     className="chat-human-overlay"
                     role="dialog"
