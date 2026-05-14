@@ -1,5 +1,3 @@
-import logging
-import os
 import sys
 import json
 from dataclasses import asdict
@@ -8,13 +6,11 @@ from llm_setting.setting_handler import SettingHandler
 from registrar.tools_request_registry import get_cmd
 
 
-def list_subdir(path):
-    dirs = []
-    for name in os.listdir(path):
-        full = os.path.join(path, name)
-        if os.path.isdir(full):
-            dirs.append(full)
-    return dirs
+def safe_result(r):
+    if isinstance(r, (dict, list, str, int, float, bool, type(None))):
+        return r
+    else:
+        return json.dumps(asdict(r), ensure_ascii=False, indent=2)
 
 
 def main():
@@ -43,20 +39,13 @@ def main():
 
         result = cmd_invoke.get(cmd)
 
-        def safe_result(r):
-            if isinstance(r, (dict, list, str, int, float, bool, type(None))):
-                return r
-            elif hasattr(r, "to_dict"):
-                return r.to_dict()
-            else:
-                return str(r)
-
         # safe_result(result)
 
+        # json.dumps(asdict(result), ensure_ascii=False, indent=2)
         print(json.dumps({
             "type": "command_result",
             "cmd": setting_type,
-            "result": json.dumps(asdict(result), ensure_ascii=False, indent=2)
+            "result": safe_result(result)
         }), flush=True)
 
     except Exception as e:

@@ -21,6 +21,7 @@ class WorkspaceParam:
 @dataclass
 class WorkspaceSettingCreate:
     path: str
+    permission: str = 'ro'
     sandbox: bool = True
 
 

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
@@ -11,8 +12,12 @@ from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.mcp import MCPClients, MCPClientTool
+from app.tool.open_outlook_email import OpenOutlookEmail
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
+
+
+_MCP_CONNECT_TIMEOUT_SEC = 25.0
 
 
 class Manus(ToolCallAgent):
@@ -36,6 +41,7 @@ class Manus(ToolCallAgent):
             PythonExecute(),
             BrowserUseTool(),
             StrReplaceEditor(),
+            OpenOutlookEmail(),
             AskHuman(),
             Terminate(),
         )
@@ -70,21 +76,35 @@ class Manus(ToolCallAgent):
             try:
                 if server_config.type == "sse":
                     if server_config.url:
-                        await self.connect_mcp_server(server_config.url, server_id)
+                        await asyncio.wait_for(
+                            self.connect_mcp_server(
+                                server_config.url, server_id
+                            ),
+                            timeout=_MCP_CONNECT_TIMEOUT_SEC,
+                        )
                         logger.info(
                             f"Connected to MCP server {server_id} at {server_config.url}"
                         )
                 elif server_config.type == "stdio":
                     if server_config.command:
-                        await self.connect_mcp_server(
-                            server_config.command,
-                            server_id,
-                            use_stdio=True,
-                            stdio_args=server_config.args,
+                        await asyncio.wait_for(
+                            self.connect_mcp_server(
+                                server_config.command,
+                                server_id,
+                                use_stdio=True,
+                                stdio_args=server_config.args,
+                            ),
+                            timeout=_MCP_CONNECT_TIMEOUT_SEC,
                         )
                         logger.info(
                             f"Connected to MCP server {server_id} using command {server_config.command}"
                         )
+            except asyncio.TimeoutError:
+                logger.error(
+                    "MCP server %s connect timed out after %.0fs — check URL/command or disable this server in config/mcp.json",
+                    server_id,
+                    _MCP_CONNECT_TIMEOUT_SEC,
+                )
             except Exception as e:
                 logger.error(f"Failed to connect to MCP server {server_id}: {e}")
 

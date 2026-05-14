@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 import structlog
 
@@ -27,6 +28,8 @@ structlog.configure(
         *renderer,
     ],
     cache_logger_on_first_use=True,
+    # 与 agent_stream 等子进程约定：stdout 仅作机器可读协议，日志走 stderr
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
 )
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(level=logging.DEBUG)

@@ -70,18 +70,30 @@
     overflow: auto;
 }
 
-/* 聊天内容 */
+/* 聊天内容：中文阅读向的字体与行高 */
 .chat-body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        'PingFang SC',
+        'Hiragino Sans GB',
+        'Microsoft YaHei',
+        'Noto Sans SC',
+        sans-serif;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
 }
 
 .msg {
-    max-width: 60%;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 12px;
+    max-width: min(720px, 85%);
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 14px;
 }
 
 .msg-user {
@@ -91,14 +103,33 @@
 
 .msg-ai {
     background: #fff;
-    border: 1px solid #ddd;
+    border: 1px solid #e2e8f0;
     margin-right: auto;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .msg-role {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+/* 气泡内正文（角色标签后的内容块） */
+.msg-role + div {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #1e293b;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.msg-ai .msg-role + div {
+    color: #334155;
+    line-height: 1.72;
 }
 
 /* 输入框 */

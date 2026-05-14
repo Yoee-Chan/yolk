@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Card, Typography, Button, Flex, Space, Input, Select, Form, Slider, Radio, Modal} from 'antd';
+import {Card, Typography, Button, Flex, Space, Input, Select, Form, Slider, Radio, Modal, PopconfirmProps, message, Popconfirm} from 'antd';
 import {
     EditOutlined,
     DeleteOutlined,
@@ -101,6 +101,18 @@ export default function Setting() {
 
 
     };
+    const [delWorkSpace, holder] = message.useMessage();
+
+    const confirm: PopconfirmProps['onConfirm'] = (e) => {
+        console.log(e);
+        delWorkSpace.success('Click on Yes');
+    };
+
+    const cancel: PopconfirmProps['onCancel'] = (e) => {
+        console.log(e);
+        delWorkSpace.error('Click on No');
+    };
+
     const onRename = (dir: string | undefined): void => {
         console.log("rename", dir);
     };
@@ -116,7 +128,16 @@ export default function Setting() {
     const onCreate = (): void => {
         setIsModalWorkSpaceOpen(true)
     };
-    const handleWorkspaceOk = (values: any) => {
+    const handleWorkspaceOk = async (values: SubPath) => {
+        const param = {
+            "SettingType": "workspace",
+            "cmd": "add",
+            "Param": {
+                "path": path + "\\" + values.name,
+                "permission": values.permission
+            }
+        }
+        const addResult: string = await window.api.llmSetting(JSON.stringify(param));
         setIsModalWorkSpaceOpen(false);
     };
 
@@ -132,7 +153,7 @@ export default function Setting() {
         {name: 'logs', permission: 'ro'},
     ]);
     const [form] = Form.useForm();
-    const [workspaceform] = Form.useForm();
+    const [workspace] = Form.useForm();
     const [isModalWorkSpaceOpen, setIsModalWorkSpaceOpen] = useState(false);
 
     // ====== MCP 配置状态 ======
@@ -227,12 +248,24 @@ export default function Setting() {
                                             {dir.permission === 'rw' ? '读写' : '只读'}
                                         </Text>
                                     </div>
-
+                                    {holder}
                                     {/* 右侧：操作按钮 */}
                                     <Space size={16}>
                                         <EditOutlined onClick={() => onRename(dir.name)}/>
                                         <SettingOutlined onClick={() => onPermission(dir.name)}/>
-                                        <DeleteOutlined onClick={() => onDelete(dir.name)}/>
+
+
+                                        <Popconfirm
+                                            title="Delete the task"
+                                            description="Are you sure to delete this task?"
+                                            onConfirm={confirm}
+                                            onCancel={cancel}
+                                            okText="Yes"
+                                            cancelText="No"
+                                        >
+                                            <DeleteOutlined onClick={() => onDelete(dir.name)}/>
+                                        </Popconfirm>
+
                                     </Space>
                                 </Flex>
                             ))}
@@ -241,17 +274,16 @@ export default function Setting() {
                             title="新建问价夹"
                             open={isModalWorkSpaceOpen}
                             onOk={() => {
-                                workspaceform.validateFields().then(values => {
-                                    console.log(values);
+                                workspace.validateFields().then(values => {
                                     handleWorkspaceOk(values);
                                 });
                             }}
                             onCancel={handleWorkspaceCancel}
                         >
-                            <Form form={workspaceform} layout="vertical">
+                            <Form form={workspace} layout="vertical">
                                 <Form.Item
                                     label="问价夹名称"
-                                    name="folderName"
+                                    name="name"
                                     rules={[{required: true, message: '请输入问价夹名称'}]}
                                 >
                                     <Input placeholder="请输入名称"/>
@@ -259,8 +291,8 @@ export default function Setting() {
 
                                 <Form.Item label="权限" name="permission" initialValue="read">
                                     <Radio.Group>
-                                        <Radio value="read">只读</Radio>
-                                        <Radio value="write">读写</Radio>
+                                        <Radio value="ro">只读</Radio>
+                                        <Radio value="rw">读写</Radio>
                                     </Radio.Group>
                                 </Form.Item>
                             </Form>

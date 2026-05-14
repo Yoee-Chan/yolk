@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -113,11 +113,18 @@ class BaseAgent(BaseModel, ABC):
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
 
-    async def run(self, request: Optional[str] = None) -> str:
+    async def run(
+        self,
+        request: Optional[str] = None,
+        *,
+        on_step: Optional[Callable[[str], None]] = None,
+    ) -> str:
         """Execute the agent's main loop asynchronously.
 
         Args:
             request: Optional initial user request to process.
+            on_step: Optional callback invoked after each step with the raw step
+                result string (used by agent-controller to stream visible replies).
 
         Returns:
             A string summarizing the execution results.
@@ -145,6 +152,8 @@ class BaseAgent(BaseModel, ABC):
                     self.handle_stuck_state()
 
                 results.append(f"Step {self.current_step}: {step_result}")
+                if on_step is not None:
+                    on_step(step_result)
 
             if self.current_step >= self.max_steps:
                 self.current_step = 0

@@ -18,7 +18,6 @@ class SettingHandler():
             CreateModel = self.factory.get_create_model()
             create_obj = CreateModel(**data)
             self.validator.validate_create(create_obj)
-
             self.repo.add(create_obj)
             return True
         except Exception as e:

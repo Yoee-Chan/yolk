@@ -1,9 +1,12 @@
 import math
 from typing import Dict, List, Optional, Union
 
+import httpx
 import tiktoken
 from openai import (
+    APIConnectionError,
     APIError,
+    APITimeoutError,
     AsyncAzureOpenAI,
     AsyncOpenAI,
     AuthenticationError,
@@ -13,7 +16,7 @@ from openai import (
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_random_exponential,
 )
@@ -40,6 +43,53 @@ MULTIMODAL_MODELS = [
     "claude-3-sonnet-20240229",
     "claude-3-haiku-20240307",
 ]
+
+_HTTP_TIMEOUT = httpx.Timeout(connect=45.0, read=600.0, write=120.0, pool=30.0)
+
+
+def _should_retry_llm_http_error(exc: BaseException) -> bool:
+    """Retry only transient server/rate issues — not bad URL, auth, or validation."""
+    if isinstance(exc, TokenLimitExceeded):
+        return False
+    if isinstance(exc, (AuthenticationError, APIConnectionError)):
+        return False
+    if isinstance(exc, ValueError):
+        return False
+    if isinstance(exc, RateLimitError):
+        return True
+    if isinstance(exc, APITimeoutError):
+        return True
+    if isinstance(exc, APIError):
+        code = getattr(exc, "status_code", None)
+        if code is not None and code >= 500:
+            return True
+        return False
+    return False
+
+
+def _log_openai_error(oe: OpenAIError, base_url: str) -> None:
+    if isinstance(oe, APIConnectionError):
+        logger.error(
+            "LLM API connection failed: %s. base_url=%r — check that the URL is correct, "
+            "the service is reachable (local gateway running if applicable), firewall/VPN, "
+            "and HTTP_PROXY/HTTPS_PROXY when behind a corporate proxy.",
+            oe,
+            base_url,
+        )
+        return
+    if isinstance(oe, AuthenticationError):
+        logger.error("Authentication failed. Check API key.")
+        return
+    if isinstance(oe, RateLimitError):
+        logger.error("Rate limit exceeded. Consider backing off or increasing quota.")
+        return
+    if isinstance(oe, APITimeoutError):
+        logger.error("LLM request timed out: %s", oe)
+        return
+    if isinstance(oe, APIError):
+        logger.error("LLM API error: %s", oe)
+        return
+    logger.error("OpenAI SDK error: %s", oe)
 
 
 class TokenCounter:
@@ -214,15 +264,29 @@ class LLM:
                 self.tokenizer = tiktoken.get_encoding("cl100k_base")
 
             if self.api_type == "azure":
+                self._http_client = httpx.AsyncClient(
+                    timeout=_HTTP_TIMEOUT,
+                    trust_env=True,
+                )
                 self.client = AsyncAzureOpenAI(
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
+                    http_client=self._http_client,
                 )
             elif self.api_type == "aws":
+                self._http_client = None
                 self.client = BedrockClient()
             else:
-                self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+                self._http_client = httpx.AsyncClient(
+                    timeout=_HTTP_TIMEOUT,
+                    trust_env=True,
+                )
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    http_client=self._http_client,
+                )
 
             self.token_counter = TokenCounter(self.tokenizer)
 
@@ -352,11 +416,10 @@ class LLM:
         return formatted_messages
 
     @retry(
-        wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        wait=wait_random_exponential(min=1, max=45),
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception(_should_retry_llm_http_error),
+        reraise=True,
     )
     async def ask(
         self,
@@ -466,24 +529,17 @@ class LLM:
             logger.exception(f"Validation error")
             raise
         except OpenAIError as oe:
-            logger.exception(f"OpenAI API error")
-            if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
-            elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
-            elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
+            _log_openai_error(oe, self.base_url)
             raise
         except Exception:
             logger.exception(f"Unexpected error in ask")
             raise
 
     @retry(
-        wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        wait=wait_random_exponential(min=1, max=45),
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception(_should_retry_llm_http_error),
+        reraise=True,
     )
     async def ask_with_images(
         self,
@@ -622,24 +678,17 @@ class LLM:
             logger.error(f"Validation error in ask_with_images: {ve}")
             raise
         except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
-            if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
-            elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
-            elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
+            _log_openai_error(oe, self.base_url)
             raise
         except Exception as e:
             logger.error(f"Unexpected error in ask_with_images: {e}")
             raise
 
     @retry(
-        wait=wait_random_exponential(min=1, max=60),
-        stop=stop_after_attempt(6),
-        retry=retry_if_exception_type(
-            (OpenAIError, Exception, ValueError)
-        ),  # Don't retry TokenLimitExceeded
+        wait=wait_random_exponential(min=1, max=45),
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception(_should_retry_llm_http_error),
+        reraise=True,
     )
     async def ask_tool(
         self,
@@ -729,6 +778,12 @@ class LLM:
                 )
 
             params["stream"] = False  # Always use non-streaming for tool requests
+            logger.info(
+                "Calling LLM chat.completions (model=%s, base_url=%s, timeout=%ss)",
+                self.model,
+                self.base_url,
+                timeout,
+            )
             response: ChatCompletion = await self.client.chat.completions.create(
                 **params
             )
@@ -753,13 +808,7 @@ class LLM:
             logger.error(f"Validation error in ask_tool: {ve}")
             raise
         except OpenAIError as oe:
-            logger.error(f"OpenAI API error: {oe}")
-            if isinstance(oe, AuthenticationError):
-                logger.error("Authentication failed. Check API key.")
-            elif isinstance(oe, RateLimitError):
-                logger.error("Rate limit exceeded. Consider increasing retry attempts.")
-            elif isinstance(oe, APIError):
-                logger.error(f"API error: {oe}")
+            _log_openai_error(oe, self.base_url)
             raise
         except Exception as e:
             logger.error(f"Unexpected error in ask_tool: {e}")

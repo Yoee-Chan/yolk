@@ -1,3 +1,4 @@
+from app.human_input_bridge import prompt_user
 from app.tool import BaseTool
 
 
@@ -18,4 +19,4 @@ class AskHuman(BaseTool):
     }
 
     async def execute(self, inquire: str) -> str:
-        return input(f"""Bot: {inquire}\n\nYou: """).strip()
+        return await prompt_user(f"Bot: {inquire}\n\nYou:")

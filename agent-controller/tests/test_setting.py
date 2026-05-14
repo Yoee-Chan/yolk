@@ -1,7 +1,10 @@
+import io
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from agent_tools import main
 from llm_setting.config_paths import ConfigPaths
 from llm_setting.json_repository import JSONSettingRepository
 from llm_setting.data_models import WorkspaceConfig
@@ -53,6 +56,19 @@ def test_add_workspace():
     if cmd not in cmd_invoke:
         raise ValueError(f"不支持的命令：{cmd}")
     result = cmd_invoke.get(cmd)
+
+
+def test_add_workspace_main():
+    # 构造一个模拟请求的 JSON
+    test_input = {"SettingType": "workspace", "cmd": "add",
+                  "Param": {"path": "C:\\Users\\yoeec\\Desktop\\workSpace\\dddf"}}
+    # 转成字符串，模拟前端传过来的原始请求
+    raw = json.dumps(test_input, ensure_ascii=False)
+    # 模拟 stdin
+    sys.stdin = io.StringIO(raw)
+    # 调用 main()，不用传参数
+    output = main()
+    print(output)
 
 # print("=== 添加 Workspace Setting ===")
 # ws = handle_setting_request(

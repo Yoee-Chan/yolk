@@ -1,6 +1,7 @@
 """File operation interfaces and implementations for local and sandbox environments."""
 
 import asyncio
+import locale
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, runtime_checkable
 
@@ -10,6 +11,22 @@ from app.sandbox.client import SANDBOX_CLIENT
 
 
 PathLike = Union[str, Path]
+
+
+def _decode_process_output(data: Optional[bytes]) -> str:
+    """Decode subprocess stdout/stderr (Windows consoles often use GBK/CP936)."""
+    if not data:
+        return ""
+    for enc in ("utf-8", "utf-8-sig", "gbk", "cp936"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    pref = locale.getpreferredencoding(False) or "utf-8"
+    try:
+        return data.decode(pref, errors="strict")
+    except (LookupError, UnicodeDecodeError):
+        return data.decode("utf-8", errors="replace")
 
 
 @runtime_checkable
@@ -80,8 +97,8 @@ class LocalFileOperator(FileOperator):
             )
             return (
                 process.returncode or 0,
-                stdout.decode(),
-                stderr.decode(),
+                _decode_process_output(stdout),
+                _decode_process_output(stderr),
             )
         except asyncio.TimeoutError as exc:
             try:

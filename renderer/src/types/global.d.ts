@@ -5,8 +5,10 @@ declare global {
                 args: any,
                 onData: (data: string) => void,
                 onError: (err: string) => void,
-                onExit: (code: number) => void
+                onExit: (code: number | null) => void
             ) => void;
+
+            cancelPython: () => void;
 
             sendPythonInput: (data: any) => void;
 
