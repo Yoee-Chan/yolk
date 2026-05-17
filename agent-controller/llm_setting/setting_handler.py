@@ -24,25 +24,25 @@ class SettingHandler():
             logging.error(f"Get an error when add---{self.setting_type}--{e}")
             return False
 
-    def update(self, data: dict[str, Any]) -> bool:
-        ...
-        # try:
-        #     UpdateModel = self.factory.get_update_model()
-        #     update_obj = UpdateModel(**data["update"])
-        #     self.validator.validate_update(update_obj)
-        #     return self.repo.update(data["id"], update_obj)
-        # except Exception as e:
-        #     logging.error(f"Get an error when update---{self.setting_type}--{e}")
-        #     return False
+    def update(self, data: dict[str, Any]) -> Any:
+        try:
+            UpdateModel = self.factory.get_update_model()
+            update_obj = UpdateModel(**data)
+            self.validator.validate_update(update_obj)
+            if hasattr(self.repo, "update"):
+                return self.repo.update(data, update_obj)
+            return False
+        except Exception as e:
+            logging.error(f"Get an error when update---{self.setting_type}--{e}")
+            return False
 
-    def delete(self, data: dict[str, Any]) -> bool:
-        ...
-        # try:
-        #     self.repo.delete(data["id"])
-        #     return True
-        # except Exception as e:
-        #     logging.error(f"Get an error when delete---{self.setting_type}--{e}")
-        #     return False
+    def delete(self, data: dict[str, Any]) -> Any:
+        try:
+            self.repo.delete(data)
+            return True
+        except Exception as e:
+            logging.error(f"Get an error when delete---{self.setting_type}--{e}")
+            return False
 
     def search(self) -> list:
         try:
@@ -51,12 +51,38 @@ class SettingHandler():
             # logging.error(f"Get an error when search---{self.setting_type}--{e}")
             return []
 
-    def search_by_id(self, data: dict[str, Any]) -> list:
-        ...
-        # try:
-        #
-        #     return self.repo.get(data["path"])
-        # except Exception as e:
-        #     logging.error(f"Get an error when search---{self.setting_type}--{e}")
-        #     logging.error(e)
-        #     return []
+    def search_by_id(self, data: dict[str, Any]) -> Any:
+        try:
+            path = data.get("path") or data.get("id")
+            if not path:
+                raise ValueError("缺少 path 参数")
+            return self.repo.get(path)
+        except Exception as e:
+            logging.error(f"Get an error when search_by_id---{self.setting_type}--{e}")
+            return None
+
+    def test_connection(self, data: dict[str, Any]) -> Any:
+        if hasattr(self.repo, "test_connection"):
+            return self.repo.test_connection(data)
+        raise ValueError(f"{self.setting_type} 不支持 test 命令")
+
+    def oauth_start(self, data: dict[str, Any]) -> Any:
+        if hasattr(self.repo, "oauth_start"):
+            return self.repo.oauth_start(data)
+        raise ValueError(f"{self.setting_type} 不支持 oauth_start 命令")
+
+    def oauth_finish(self, data: dict[str, Any]) -> Any:
+        if hasattr(self.repo, "oauth_finish"):
+            return self.repo.oauth_finish(data)
+        raise ValueError(f"{self.setting_type} 不支持 oauth_finish 命令")
+
+    def oauth_app_status(self, data: dict[str, Any]) -> Any:
+        if hasattr(self.repo, "oauth_app_status"):
+            return self.repo.oauth_app_status(data)
+        raise ValueError(f"{self.setting_type} 不支持 oauth_app_status 命令")
+
+    def oauth_app_save(self, data: dict[str, Any]) -> Any:
+        if hasattr(self.repo, "oauth_app_save"):
+            return self.repo.oauth_app_save(data)
+        raise ValueError(f"{self.setting_type} 不支持 oauth_app_save 命令")
+

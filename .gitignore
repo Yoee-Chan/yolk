@@ -4,6 +4,9 @@ dist
 .npmrc
 package-lock.json
 .env
+agent-controller/llm_config/jira_oauth.app.json
+agent-controller/llm_config/jira_connector.json
+agent-controller/llm_config/.jira_oauth_state.json
 dist-electron
 agent.spec
 agent_tools.spec

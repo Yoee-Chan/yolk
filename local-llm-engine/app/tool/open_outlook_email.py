@@ -28,12 +28,13 @@ def _find_outlook_exe() -> Optional[str]:
     return None
 
 
-def _build_mailto(to: str, subject: str, body: str) -> str:
+def _build_mailto(to: str, subject: str, body: str, cc: str) -> str:
     to = (to or "").strip()
-    q = urllib.parse.urlencode(
-        {"subject": subject or "", "body": body or ""},
-        quote_via=urllib.parse.quote,
-    )
+    cc = (cc or "").strip()
+    params: dict[str, str] = {"subject": subject or "", "body": body or ""}
+    if cc:
+        params["cc"] = cc
+    q = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
     if to:
         return f"mailto:{to}?{q}"
     return f"mailto:?{q}"
@@ -58,9 +59,11 @@ class OpenOutlookEmail(BaseTool):
 
     name: str = "open_outlook_email"
     description: str = (
-        "在 Windows 上使用 Microsoft Outlook 打开「新邮件」撰写窗口；不会自动发送，仅打开界面由用户确认后发送。"
-        "适合「帮我打开邮件写一下」「用 Outlook 发邮件」等需求：无收件人/主题/正文时直接启动 Outlook 空白新邮件；"
-        "若提供收件人、主题或正文，则通过 mailto 预填（需将 Outlook 设为 Windows 默认电子邮件应用）。"
+        "在 Windows 上用 Outlook 打开「新邮件」并预填字段；不会自动发送，用户在 Outlook 里点击「发送」。"
+        "调用前须在普通聊天中向用户完整展示 To、Cc（如有）、Subject、Body，"
+        "由用户在聊天里确认或提出修改；不得在确认邮件草稿时使用 ask_human 弹窗。"
+        "仅在用户在聊天中明确同意后再调用本工具，且参数须与已同意的草稿一致。"
+        "无预填内容时可单独打开空白新邮件。有预填时通过 mailto（需将 Outlook 设为 Windows 默认电子邮件应用）。"
     )
     parameters: dict = {
         "type": "object",
@@ -68,6 +71,10 @@ class OpenOutlookEmail(BaseTool):
             "to": {
                 "type": "string",
                 "description": "收件人邮箱；多个地址用英文逗号分隔。可不填。",
+            },
+            "cc": {
+                "type": "string",
+                "description": "抄送邮箱；多个地址用英文逗号分隔。可不填。",
             },
             "subject": {
                 "type": "string",
@@ -84,6 +91,7 @@ class OpenOutlookEmail(BaseTool):
     async def execute(
         self,
         to: str = "",
+        cc: str = "",
         subject: str = "",
         body: str = "",
     ) -> str:
@@ -94,16 +102,19 @@ class OpenOutlookEmail(BaseTool):
             )
 
         to = to or ""
+        cc = cc or ""
         subject = subject or ""
         body = body or ""
-        has_prefill = bool(to.strip() or subject.strip() or body.strip())
+        has_prefill = bool(
+            to.strip() or cc.strip() or subject.strip() or body.strip()
+        )
         exe = _find_outlook_exe()
 
         def run() -> None:
             if not has_prefill and exe:
                 _launch_blank_outlook(exe)
             else:
-                _open_mailto_windows(_build_mailto(to, subject, body))
+                _open_mailto_windows(_build_mailto(to, subject, body, cc))
 
         try:
             await asyncio.to_thread(run)

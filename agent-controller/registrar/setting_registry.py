@@ -4,6 +4,9 @@ from llm_setting.setting_factories import (
     SettingFactory,
     WorkspaceSettingFactory,
     MCPSettingFactory,
+    JiraConnectorSettingFactory,
+    LLMProviderSettingFactory,
+    RiskSettingFactory,
 )
 
 
@@ -19,4 +22,7 @@ def get_path():
 SETTING_REGISTRY: dict[str, SettingFactory] = {
     "workspace": WorkspaceSettingFactory(get_path()),
     "mcp": MCPSettingFactory(get_path()),
+    "jira_connector": JiraConnectorSettingFactory(get_path()),
+    "llm_provider": LLMProviderSettingFactory(get_path()),
+    "risk": RiskSettingFactory(get_path()),
 }

@@ -15,7 +15,7 @@ const PageMap = {
     newTask: NewTask,
     pipelineTask: PipelineTask,
     tokenMange: TokenMange,
-    found: Found,
+    skill: Found,
     setting: Setting
 }
 

@@ -6,17 +6,29 @@ from .setting_repositories import (
     SettingRepository,
     WorkspaceSettingRepository,
     MCPSettingRepository,
+    JiraConnectorRepository,
+    LLMProviderRepository,
+    RiskConfigRepository,
 )
 from .data_validators import (
     Validator,
     WorkspaceSettingValidator,
     MCPSettingValidator,
+    JiraConnectorValidator,
+    LLMProviderValidator,
+    RiskConfigValidator,
 )
 from .data_models import (
     WorkspaceSettingCreate,
     WorkspaceSettingUpdate,
     MCPSettingCreate,
     MCPSettingUpdate,
+    JiraConnectorLogin,
+    JiraConnectorUpdate,
+    LLMProviderConfig,
+    LLMProviderUpdate,
+    RiskConfig,
+    RiskConfigUpdate,
 )
 from .opt_risk import (
     LowRiskStrategy,
@@ -77,8 +89,8 @@ class WorkspaceSettingFactory(SettingFactory):
 
 
 class MCPSettingFactory(SettingFactory):
-    def __init__(self,paths) -> None:
-        self._repo = MCPSettingRepository(paths)
+    def __init__(self, paths: ConfigPaths) -> None:
+        self._repo = MCPSettingRepository(paths.mcp_json, paths.engine_mcp_json)
         self._validator = MCPSettingValidator()
 
     def get_repository(self):
@@ -99,3 +111,79 @@ class MCPSettingFactory(SettingFactory):
         if action == "delete":
             return ExtremeRiskStrategy()
         return MediumRiskStrategy()
+
+
+class JiraConnectorSettingFactory(SettingFactory):
+    def __init__(self, paths: ConfigPaths) -> None:
+        import os
+
+        os.makedirs(os.path.dirname(paths.jira_connector_json), exist_ok=True)
+        self._repo = JiraConnectorRepository(paths.jira_connector_json)
+        self._validator = JiraConnectorValidator()
+
+    def get_repository(self):
+        return self._repo
+
+    def get_validator(self):
+        return self._validator
+
+    def get_create_model(self):
+        return JiraConnectorLogin
+
+    def get_update_model(self):
+        return JiraConnectorUpdate
+
+    def get_risk_strategy(self, action: str) -> RiskStrategy:
+        if action in ("add", "delete"):
+            return HighRiskStrategy()
+        return MediumRiskStrategy()
+
+
+class LLMProviderSettingFactory(SettingFactory):
+    def __init__(self, paths: ConfigPaths) -> None:
+        import os
+
+        os.makedirs(os.path.dirname(paths.llm_provider_json), exist_ok=True)
+        self._repo = LLMProviderRepository(
+            paths.llm_provider_json, paths.engine_config_toml
+        )
+        self._validator = LLMProviderValidator()
+
+    def get_repository(self):
+        return self._repo
+
+    def get_validator(self):
+        return self._validator
+
+    def get_create_model(self):
+        return LLMProviderConfig
+
+    def get_update_model(self):
+        return LLMProviderUpdate
+
+    def get_risk_strategy(self, action: str) -> RiskStrategy:
+        return HighRiskStrategy() if action in ("add", "delete") else MediumRiskStrategy()
+
+
+class RiskSettingFactory(SettingFactory):
+    def __init__(self, paths: ConfigPaths) -> None:
+        import os
+
+        os.makedirs(os.path.dirname(paths.risk_json), exist_ok=True)
+        self._repo = RiskConfigRepository(paths.risk_json)
+        self._validator = RiskConfigValidator()
+
+    def get_repository(self):
+        return self._repo
+
+    def get_validator(self):
+        return self._validator
+
+    def get_create_model(self):
+        return RiskConfig
+
+    def get_update_model(self):
+        return RiskConfigUpdate
+
+    def get_risk_strategy(self, action: str) -> RiskStrategy:
+        return LowRiskStrategy()

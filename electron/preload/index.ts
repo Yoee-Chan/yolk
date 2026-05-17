@@ -38,5 +38,8 @@ contextBridge.exposeInMainWorld('api', {
     },
     selectFolder: () => ipcRenderer.invoke('select-folder'),
 
-    llmSetting: (param: string) => ipcRenderer.invoke("llm-Setting", param)
+    llmSetting: (param: string) => ipcRenderer.invoke("llm-Setting", param),
+
+    jiraOAuthLogin: (options?: {default_project_key?: string}) =>
+        ipcRenderer.invoke('jira-oauth-login', options ?? {})
 })

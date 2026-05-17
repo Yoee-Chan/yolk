@@ -16,6 +16,9 @@ declare global {
 
             selectFolder: () => Promise<string | null>;
             llmSetting: (Param: string) => Promise<string>;
+            jiraOAuthLogin: (options?: {
+                default_project_key?: string;
+            }) => Promise<unknown>;
             scanWorkspace: (Param: string) => Promise<WorkingSpace>;
         };
     }

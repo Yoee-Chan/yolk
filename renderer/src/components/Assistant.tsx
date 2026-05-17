@@ -30,9 +30,9 @@ const items = [{
 
     },
     {
-        key: 'found',
+        key: 'skill',
         icon: <SearchOutlined/>,
-        label: '发现'
+        label: '能力扩展'
     }]
 
 

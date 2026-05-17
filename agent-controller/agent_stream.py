@@ -30,6 +30,10 @@ else:
 
 LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
 WORKSPACE_JSON = os.path.join(SCRIPT_DIR, "llm_config", "workspace.json")
+os.environ.setdefault(
+    "YOLK_JIRA_CONNECTOR_JSON",
+    os.path.join(SCRIPT_DIR, "llm_config", "jira_connector.json"),
+)
 if not getattr(sys, "frozen", False):
     sys.path.insert(0, LLM_ENGINE_DIR)
 
