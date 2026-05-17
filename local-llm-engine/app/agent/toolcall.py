@@ -114,9 +114,13 @@ class ToolCallAgent(ReActAgent):
             if self.tool_choices == ToolChoice.REQUIRED and not self.tool_calls:
                 return True  # Will be handled in act()
 
-            # For 'auto' mode, continue with content if no commands but content exists
+            # AUTO + 纯自然语言、无工具：视为本轮对话已结束，须等用户下一条消息再跑 run()。
+            # 若此处 return True 却不结束 run 循环，下一步会再次注入 next_step_prompt 并二次请求模型，
+            # 造成「AI 一直输入、不等用户回复」。
             if self.tool_choices == ToolChoice.AUTO and not self.tool_calls:
-                return bool(content)
+                if content and str(content).strip():
+                    self.state = AgentState.FINISHED
+                return bool(content and str(content).strip())
 
             return bool(self.tool_calls)
         except Exception as e:

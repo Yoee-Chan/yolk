@@ -12,6 +12,7 @@ from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.mcp import MCPClients, MCPClientTool
+from app.tool.jira_create_issue import JiraCreateIssue
 from app.tool.open_outlook_email import OpenOutlookEmail
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
@@ -42,6 +43,7 @@ class Manus(ToolCallAgent):
             BrowserUseTool(),
             StrReplaceEditor(),
             OpenOutlookEmail(),
+            JiraCreateIssue(),
             AskHuman(),
             Terminate(),
         )

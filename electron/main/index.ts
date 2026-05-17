@@ -1,19 +1,29 @@
-import {app, BrowserWindow, ipcMain, dialog, WebContents} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog, WebContents, session} from 'electron'
 import path from 'path'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
+import {runAtlassianOAuthFlow} from './jira-oauth'
 
 let py: ChildProcessWithoutNullStreams | null = null
 /** 最近一次发起 agent 渲染进程的 WebContents，用于复用子进程时仍能推送 stdout/stderr */
 let streamSender: WebContents | null = null
 let mainWindow: BrowserWindow | null = null
 
+/** Windows 默认控制台编码为 GBK；子进程与前端统一使用 UTF-8，避免中文乱码 */
+function getPythonChildEnv(): NodeJS.ProcessEnv {
+    return {
+        ...process.env,
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+    }
+}
+
 function attachAgentChildListeners(child: ChildProcessWithoutNullStreams) {
     child.stdout.on('data', data => {
-        streamSender?.send('agent-controller-stream', data.toString())
+        streamSender?.send('agent-controller-stream', data.toString('utf8'))
     })
     child.stderr.on('data', err => {
-        streamSender?.send('agent-controller-error', err.toString())
+        streamSender?.send('agent-controller-error', err.toString('utf8'))
     })
     child.on('error', () => {
         if (py !== child) {
@@ -59,6 +69,66 @@ function getToolsPythonCommand() {
     }
 }
 
+function callAgentTools(param: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const {command, args} = getToolsPythonCommand()
+        let output = ''
+        let error = ''
+        const child = spawn(command, args, {
+            cwd: process.cwd(),
+            env: getPythonChildEnv(),
+        })
+        child.stdin.write(Buffer.from(param + '\n', 'utf8'))
+        child.stdin.end()
+        child.stdout.on('data', (data) => {
+            output += data.toString('utf8')
+        })
+        child.stderr.on('data', (data) => {
+            error += data.toString('utf8')
+        })
+        child.on('error', (err) => {
+            reject(new Error('Failed to spawn Python: ' + err.message))
+        })
+        child.on('close', (code) => {
+            if (code !== 0) {
+                reject(new Error(`Python exited with code ${code}\n${error}`))
+                return
+            }
+            resolve(output)
+        })
+    })
+}
+
+function parseAgentToolsOutput(output: string): unknown {
+    const parsed = JSON.parse(output)
+    if (parsed.type === 'command_error') {
+        throw new Error(parsed.error || 'agent_tools 执行失败')
+    }
+    return parsed.result
+}
+
+
+function registerContentSecurityPolicy() {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        const devConnect =
+            "connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*"
+        const csp = [
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            is.dev ? devConnect : "connect-src 'self'",
+        ].join('; ')
+
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+                'Content-Security-Policy': [csp],
+            },
+        })
+    })
+}
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -85,7 +155,8 @@ function ensureAgentStreamProcess() {
     }
     const {command, args: baseArgs} = getStreamPythonCommand()
     const child = spawn(command, baseArgs, {
-        cwd: process.cwd()
+        cwd: process.cwd(),
+        env: getPythonChildEnv(),
     })
     py = child
     attachAgentChildListeners(child)
@@ -95,6 +166,7 @@ function ensureAgentStreamProcess() {
 }
 
 app.whenReady().then(() => {
+    registerContentSecurityPolicy()
     createWindow()
 
     ipcMain.on('run-agent-controller', (event, args) => {
@@ -121,12 +193,13 @@ app.whenReady().then(() => {
         ensureAgentStreamProcess()
 
         const payload = JSON.stringify({event: 'run', msg, history}) + '\n'
+        const payloadBuf = Buffer.from(payload, 'utf8')
         try {
-            py!.stdin.write(payload)
+            py!.stdin.write(payloadBuf)
         } catch {
             py = null
             ensureAgentStreamProcess()
-            py!.stdin.write(payload)
+            py!.stdin.write(payloadBuf)
         }
     })
 
@@ -147,7 +220,7 @@ app.whenReady().then(() => {
         console.log('收到前端输入：', data)
         event.sender.send('agent-controller-input-echo', JSON.stringify(data));
         if (py && py.stdin.writable) {
-            py.stdin.write(JSON.stringify(data) + '\n')
+            py.stdin.write(Buffer.from(JSON.stringify(data) + '\n', 'utf8'))
         }
     })
     //文件夹选择
@@ -159,52 +232,46 @@ app.whenReady().then(() => {
     })
 
     //call llm setting
-    ipcMain.handle("llm-Setting", async (event, param: string) => {
-        console.log("llm-Setting param:", param);
-        return new Promise((resolve, reject) => {
-            const {command, args} = getToolsPythonCommand()
-
-            let output = ""
-            let error = ""
-
-            // 启动 Python 子进程
-            const py = spawn(command, args, {cwd: process.cwd()})
-
-            // 写入参数
-            py.stdin.write(param + "\n")
-            py.stdin.end()
-
-            // 捕获标准输出
-            py.stdout.on("data", (data) => {
-                output += data.toString()
-            })
-
-            // 捕获错误输出
-            py.stderr.on("data", (data) => {
-                error += data.toString()
-            })
-
-            // 捕获 spawn 错误（比如 ENOENT）
-            py.on("error", (err) => {
-                reject(new Error("Failed to spawn Python: " + err.message))
-            })
-
-            // 子进程关闭时返回结果
-            py.on("close", (code) => {
-                if (code !== 0) {
-                    reject(new Error(`Python exited with code ${code}\n${error}`))
-                    return
-                }
-
-                try {
-                    //  const parsed = JSON.parse(output)
-                    resolve(output)
-                } catch (e) {
-                    reject(new Error("JSON parse error: " + (e as Error).message + "\nOutput: " + output))
-                }
-            })
-        })
+    ipcMain.handle("llm-Setting", async (_event, param: string) => {
+        console.log("llm-Setting param:", param)
+        return callAgentTools(param)
     })
+
+    /** Jira OAuth：弹窗登录 → 换票 → 加密存本地 */
+    ipcMain.handle(
+        'jira-oauth-login',
+        async (_event, options: {default_project_key?: string}) => {
+            const defaultProjectKey = options?.default_project_key || ''
+            const startOut = await callAgentTools(
+                JSON.stringify({
+                    SettingType: 'jira_connector',
+                    cmd: 'oauth_start',
+                    Param: {default_project_key: defaultProjectKey}
+                })
+            )
+            const start = parseAgentToolsOutput(startOut) as {
+                authorize_url: string
+                state: string
+                redirect_uri: string
+            }
+            const code = await runAtlassianOAuthFlow(
+                start.authorize_url,
+                start.redirect_uri
+            )
+            const finishOut = await callAgentTools(
+                JSON.stringify({
+                    SettingType: 'jira_connector',
+                    cmd: 'oauth_finish',
+                    Param: {
+                        code,
+                        state: start.state,
+                        default_project_key: defaultProjectKey
+                    }
+                })
+            )
+            return parseAgentToolsOutput(finishOut)
+        }
+    )
 
     ensureAgentStreamProcess()
 })

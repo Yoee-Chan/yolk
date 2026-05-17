@@ -5,6 +5,12 @@ from .data_models import (
     WorkspaceSettingUpdate,
     MCPSettingCreate,
     MCPSettingUpdate,
+    JiraConnectorLogin,
+    JiraConnectorUpdate,
+    LLMProviderConfig,
+    LLMProviderUpdate,
+    RiskConfig,
+    RiskConfigUpdate,
 )
 
 
@@ -34,11 +40,56 @@ class WorkspaceSettingValidator(Validator):
 
 class MCPSettingValidator(Validator):
     def validate_create(self, data: MCPSettingCreate):
-        if not data.server_url:
-            raise ValueError("mcp.server_url 不能为空")
-        if not data.token:
-            raise ValueError("mcp.token 不能为空")
+        if not (data.name or "").strip():
+            raise ValueError("mcp.name 不能为空")
+        if not (data.type or "").strip():
+            raise ValueError("mcp.type 不能为空")
+        if not (data.url or "").strip():
+            raise ValueError("mcp.url 不能为空")
 
     def validate_update(self, data: MCPSettingUpdate):
-        # 这里可以加更多规则
+        pass
+
+
+class LLMProviderValidator(Validator):
+    def validate_create(self, data: LLMProviderConfig):
+        if not (data.model or "").strip():
+            raise ValueError("llm.model 不能为空")
+        if not (data.base_url or "").strip():
+            raise ValueError("llm.base_url 不能为空")
+
+    def validate_update(self, data: LLMProviderUpdate):
+        pass
+
+
+class RiskConfigValidator(Validator):
+    def validate_create(self, data: RiskConfig):
+        if data.risk_level < 1 or data.risk_level > 10:
+            raise ValueError("risk_level 必须在 1-10 之间")
+        if data.confirm_strategy not in ("all", "high", "llm"):
+            raise ValueError("confirm_strategy 无效")
+
+    def validate_update(self, data: RiskConfigUpdate):
+        if data.risk_level is not None and (data.risk_level < 1 or data.risk_level > 10):
+            raise ValueError("risk_level 必须在 1-10 之间")
+        if data.confirm_strategy is not None and data.confirm_strategy not in (
+            "all",
+            "high",
+            "llm",
+        ):
+            raise ValueError("confirm_strategy 无效")
+
+
+# ===== Jira Connector =====
+
+class JiraConnectorValidator(Validator):
+    def validate_create(self, data: JiraConnectorLogin):
+        if not (data.site_url or "").strip():
+            raise ValueError("jira.site_url 不能为空")
+        if not (data.email or "").strip():
+            raise ValueError("jira.email 不能为空")
+        if not (data.api_token or "").strip():
+            raise ValueError("jira.api_token 不能为空")
+
+    def validate_update(self, data: JiraConnectorUpdate):
         pass
