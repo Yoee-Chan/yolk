@@ -1,0 +1,11 @@
+{
+  "client_id": "YOUR_ATLASSIAN_OAUTH_CLIENT_ID",
+  "client_secret": "YOUR_ATLASSIAN_OAUTH_CLIENT_SECRET",
+  "redirect_uri": "http://localhost:8765/callback",
+  "scopes": [
+    "read:jira-work",
+    "write:jira-work",
+    "read:jira-user",
+    "offline_access"
+  ]
+}

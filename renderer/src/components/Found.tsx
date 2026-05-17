@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Card, List, Tag, Typography} from 'antd';
+import {Card, Flex, Spin, Tag, Typography} from 'antd';
 
 const {Paragraph, Text, Title} = Typography;
 
@@ -38,41 +38,46 @@ export default function Found() {
     }, []);
 
     return (
-        <div>
-            <Title level={4}>能力扩展</Title>
+        <section style={{padding: '24px 32px'}}>
+            <Title level={4}>{'\u80fd\u529b\u6269\u5c55'}</Title>
             <Paragraph type="secondary">
-                系统技能通过 YAML 描述定义，Agent 会根据描述与触发词匹配用户意图并调用对应工具。
+                {
+                    '\u7cfb\u7edf\u6280\u80fd\u901a\u8fc7 YAML \u63cf\u8ff0\u5b9a\u4e49\uff0cAgent \u4f1a\u6839\u636e\u63cf\u8ff0\u4e0e\u89e6\u53d1\u8bcd\u5339\u914d\u7528\u6237\u610f\u56fe\u5e76\u8c03\u7528\u5bf9\u5e94\u5de5\u5177\u3002'
+                }
             </Paragraph>
-            <List
-                loading={loading}
-                dataSource={skills}
-                locale={{emptyText: '暂无已注册技能'}}
-                renderItem={(item) => (
-                    <List.Item>
-                        <Card style={{width: '100%'}} size="small">
+            {loading ? (
+                <Flex justify="center" style={{padding: 48}}>
+                    <Spin/>
+                </Flex>
+            ) : skills.length === 0 ? (
+                <Text type="secondary">{'\u6682\u65e0\u5df2\u6ce8\u518c\u6280\u80fd'}</Text>
+            ) : (
+                <Flex vertical gap={12}>
+                    {skills.map((item) => (
+                        <Card key={item.id} style={{width: '100%'}} size="small">
                             <Text strong>{item.name}</Text>
                             <Tag style={{marginLeft: 8}}>{item.id}</Tag>
                             {item.connector && (
-                                <Tag color="blue">连接器: {item.connector}</Tag>
+                                <Tag color="blue">{'\u8fde\u63a5\u5668: '}{item.connector}</Tag>
                             )}
                             {item.tool && (
-                                <Tag color="green">工具: {item.tool}</Tag>
+                                <Tag color="green">{'\u5de5\u5177: '}{item.tool}</Tag>
                             )}
                             <Paragraph style={{marginTop: 8, whiteSpace: 'pre-wrap'}}>
                                 {item.description}
                             </Paragraph>
                             {item.triggers?.length > 0 && (
-                                <div>
-                                    <Text type="secondary">触发示例：</Text>
+                                <p>
+                                    <Text type="secondary">{'\u89e6\u53d1\u793a\u4f8b\uff1a'}</Text>
                                     {item.triggers.map((t) => (
                                         <Tag key={t}>{t}</Tag>
                                     ))}
-                                </div>
+                                </p>
                             )}
                         </Card>
-                    </List.Item>
-                )}
-            />
-        </div>
+                    ))}
+                </Flex>
+            )}
+        </section>
     );
 }

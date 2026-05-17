@@ -1,0 +1,17 @@
+{
+  "id": "jira_create_task",
+  "name": "创建 Jira 任务",
+  "version": "1.0.0",
+  "connector": "jira",
+  "tool": "jira_create_issue",
+  "description": "当用户要求在 Jira 中创建任务、缺陷、Story、子任务或工单时，使用本技能。从用户自然语言中提取：项目键（project_key）、摘要（summary）、描述（description）、可选的 issue 类型（issue_type，如 Task、Bug、Story）。若用户未指定项目，使用 Jira 连接器中配置的默认项目键。调用前须在聊天中向用户确认摘要与项目；用户明确同意后再调用 jira_create_issue 工具。需要用户已在「设置 → Jira 连接器」中点击「登录 Jira」完成 OAuth 授权。",
+  "triggers": [
+    "创建 jira",
+    "创建jira",
+    "jira 任务",
+    "jira任务",
+    "提个 bug",
+    "开个 ticket",
+    "建个工单"
+  ]
+}
