@@ -426,7 +426,7 @@ export default function Chat() {
     };
 
     return (
-        <div className="chat">
+        <div className="chat-page">
             {pendingPlanConfirm ? (
                 <div
                     className="chat-human-overlay"
@@ -534,30 +534,35 @@ export default function Chat() {
                 })}
             </div>
             <div className="chat-input">
-                <input
-                    placeholder="输入你的问题..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) =>
-                        e.key === 'Enter' && !e.shiftKey && sendMessage()
-                    }
-                />
-                {busy && !input.trim() ? (
-                    <button
-                        type="button"
-                        className="chat-cancel"
-                        onClick={cancelRun}
-                    >
-                        取消
-                    </button>
-                ) : null}
-                <button
-                    type="button"
-                    onClick={sendMessage}
-                    disabled={!input.trim()}
-                >
-                    {busy ? '发送（将中断当前任务）' : '发送'}
-                </button>
+                <div className="chat-input-inner">
+                    <input
+                        placeholder="输入你的问题..."
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) =>
+                            e.key === 'Enter' && !e.shiftKey && sendMessage()
+                        }
+                    />
+                    <div className="chat-input-actions">
+                        {busy && !input.trim() ? (
+                            <button
+                                type="button"
+                                className="chat-cancel"
+                                onClick={cancelRun}
+                            >
+                                取消
+                            </button>
+                        ) : null}
+                        <button
+                            type="button"
+                            className="chat-send"
+                            onClick={sendMessage}
+                            disabled={!input.trim()}
+                        >
+                            {busy ? '发送（将中断当前任务）' : '发送'}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
