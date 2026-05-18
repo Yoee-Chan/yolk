@@ -14,8 +14,12 @@ const TOKEN_UNIT = '\u8bcd\u5143';
 const RECHARGE_BTN = '\u7acb\u5373\u5145\u503c';
 const CURRENCY = '\u00a5';
 
-export default function TokenRechargePackages() {
-    const [selected, setSelected] = useState<string | null>(null);
+type TokenRechargePackagesProps = {
+    onProceedToCheckout: (pack: (typeof RECHARGE_PACKAGES)[number]) => void;
+};
+
+export default function TokenRechargePackages({onProceedToCheckout}: TokenRechargePackagesProps) {
+    const [selected, setSelected] = useState<string | null>('pack-m');
 
     const handleRecharge = () => {
         const pack = RECHARGE_PACKAGES.find((p) => p.id === selected);
@@ -23,9 +27,7 @@ export default function TokenRechargePackages() {
             message.warning(WARN_SELECT);
             return;
         }
-        message.success(
-            `\u5df2\u9009\u62e9\u300c${pack.name}\u300d\uff0c\u652f\u4ed8\u6d41\u7a0b\u63a5\u5165\u4e2d\uff08\u6f14\u793a UI\uff09`,
-        );
+        onProceedToCheckout(pack);
     };
 
     return (

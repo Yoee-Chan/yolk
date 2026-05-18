@@ -4,6 +4,7 @@ import {Button, Flex} from 'antd';
 
 
 type SettingProps = {
+    activeItem: string;
     onClickItem: (item: string) => void;
 };
 
@@ -33,10 +34,16 @@ const items = [{
         key: 'skill',
         icon: <SearchOutlined/>,
         label: '能力扩展'
-    }]
+    },
+    {
+        key: 'connection',
+        icon: <SearchOutlined/>,
+        label: '连接器'
+    }
+]
 
 
-export default function Assistant({onClickItem}: SettingProps) {
+export default function Assistant({activeItem, onClickItem}: SettingProps) {
     const handleClick = (item: string) => {
         onClickItem(item);
     }
@@ -48,13 +55,30 @@ export default function Assistant({onClickItem}: SettingProps) {
             </div>
             <Flex vertical gap="small" style={{width: '100%'}}>
                 {
-                    items.map((item, i) => (
-                        <Button key={i} icon={item.icon} type="text" iconPlacement="start"
-                                onClick={() => handleClick(item.key)}
-                                style={{justifyContent: 'flex-start'}}>
-                            {item.label}
-                        </Button>)
-                    )
+                    items.map((item) => {
+                        const isActive = item.key === activeItem;
+                        return (
+                            <div
+                                key={item.key}
+                                className={
+                                    isActive
+                                        ? 'assistant-nav-item assistant-nav-item--active'
+                                        : 'assistant-nav-item'
+                                }
+                            >
+                                <Button
+                                    icon={item.icon}
+                                    type="text"
+                                    block
+                                    iconPlacement="start"
+                                    onClick={() => handleClick(item.key)}
+                                    style={{justifyContent: 'flex-start'}}
+                                >
+                                    {item.label}
+                                </Button>
+                            </div>
+                        );
+                    })
                 }
             </Flex>
         </div>

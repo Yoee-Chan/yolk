@@ -39,11 +39,11 @@ export default function MainPage() {
         <div className="layout">
             {/* 左侧 Sidebar */}
             <div className="sidebar">
-                <Assistant onClickItem={SettingClickHandler}/>
+                <Assistant activeItem={activeKey} onClickItem={SettingClickHandler}/>
                 <History messages={messages}/>
             </div>
             {/* 主要的 main */}
-            <div className="chat">
+            <div className="main-panel">
                 <ActiveComponent/>
             </div>
         </div>
