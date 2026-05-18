@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Dict
 
@@ -83,30 +84,70 @@ class WorkspaceSettingRepository(
         if not raw:
             raise ValueError("子目录路径不能为空")
         if os.path.isabs(raw) or not cfg.workSpace:
-            return raw
+            return os.path.normpath(raw)
         return os.path.normpath(os.path.join(cfg.workSpace, raw))
 
-    def add(self, data: WorkspaceSettingCreate) -> bool:
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        return os.path.normcase(os.path.normpath(path))
+
+    def _is_under_workspace(self, root: str, target: str) -> bool:
+        if not root or not target:
+            return False
+        root_n = self._normalize_path(root)
+        target_n = self._normalize_path(target)
         try:
-            super().load(WorkspaceConfig)
-            cfg: WorkspaceConfig = super().get_store()
-            full_path = self._resolve_sub_path(cfg, data)
-            if any(sp.subPathName == full_path for sp in cfg.subPath):
-                raise ValueError("子目录已存在")
+            return os.path.commonpath([root_n, target_n]) == root_n
+        except ValueError:
+            return False
+
+    def _ensure_workspace_root(self, root: str) -> None:
+        root = (root or "").strip()
+        if not root:
+            raise ValueError("工作域根路径未设置")
+        os.makedirs(root, exist_ok=True)
+
+    def _create_subdir(self, root: str, sub_path: str) -> None:
+        if not self._is_under_workspace(root, sub_path):
+            raise ValueError("子目录必须位于工作域根路径下")
+        os.makedirs(sub_path, exist_ok=True)
+
+    def _remove_subdir(self, root: str, sub_path: str) -> None:
+        if not self._is_under_workspace(root, sub_path):
+            raise ValueError("无法删除工作域外的目录")
+        if os.path.isdir(sub_path):
+            shutil.rmtree(sub_path)
+
+    def add(self, data: WorkspaceSettingCreate) -> bool:
+        super().load(WorkspaceConfig)
+        cfg: WorkspaceConfig = super().get_store()
+        if not cfg.workSpace:
+            raise ValueError("请先设置工作域根路径")
+        self._ensure_workspace_root(cfg.workSpace)
+        full_path = self._resolve_sub_path(cfg, data)
+        if any(
+            self._normalize_path(sp.subPathName) == self._normalize_path(full_path)
+            for sp in cfg.subPath
+        ):
+            raise ValueError("子目录已存在")
+        self._create_subdir(cfg.workSpace, full_path)
+        try:
             cfg.subPath.append(
                 SubPathConfig(subPathName=full_path, permission=data.permission or "ro")
             )
             super().save()
             return True
-        except Exception as e:
-            logging.error(e)
-            return False
+        except Exception:
+            if os.path.isdir(full_path):
+                shutil.rmtree(full_path, ignore_errors=True)
+            raise
 
     def update(self, param: dict, data: WorkspaceSettingUpdate) -> WorkspaceConfig:
         super().load(WorkspaceConfig)
         cfg: WorkspaceConfig = super().get_store()
         if data.workSpace is not None:
             cfg.workSpace = data.workSpace.strip()
+            self._ensure_workspace_root(cfg.workSpace)
         target = (param.get("path") or param.get("subPathName") or "").strip()
         if target:
             for sp in cfg.subPath:
@@ -123,7 +164,21 @@ class WorkspaceSettingRepository(
         super().load(WorkspaceConfig)
         cfg: WorkspaceConfig = super().get_store()
         target = (param.get("path") or param.get("subPathName") or "").strip()
-        cfg.subPath = [sp for sp in cfg.subPath if sp.subPathName != target]
+        if not target:
+            raise ValueError("缺少要删除的子目录路径")
+        target_n = self._normalize_path(target)
+        matched = [
+            sp
+            for sp in cfg.subPath
+            if self._normalize_path(sp.subPathName) == target_n
+        ]
+        if not matched:
+            raise ValueError("子目录不存在")
+        if cfg.workSpace:
+            self._remove_subdir(cfg.workSpace, matched[0].subPathName)
+        cfg.subPath = [
+            sp for sp in cfg.subPath if self._normalize_path(sp.subPathName) != target_n
+        ]
         super().save()
         return True
 

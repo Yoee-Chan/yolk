@@ -1,5 +1,5 @@
 import React from 'react';
-import {SearchOutlined, SettingOutlined, CommentOutlined, MenuOutlined, ApiOutlined} from '@ant-design/icons';
+import {SearchOutlined, SettingOutlined, CommentOutlined, MenuOutlined, ApiOutlined,LinkOutlined} from '@ant-design/icons';
 import {Button, Flex} from 'antd';
 
 
@@ -37,7 +37,7 @@ const items = [{
     },
     {
         key: 'connection',
-        icon: <SearchOutlined/>,
+        icon: <LinkOutlined />,
         label: '连接器'
     }
 ]

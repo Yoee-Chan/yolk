@@ -14,15 +14,10 @@ class SettingHandler():
         self.factory = factory
 
     def add(self, data: dict[str, Any]) -> bool:
-        try:
-            CreateModel = self.factory.get_create_model()
-            create_obj = CreateModel(**data)
-            self.validator.validate_create(create_obj)
-            self.repo.add(create_obj)
-            return True
-        except Exception as e:
-            logging.error(f"Get an error when add---{self.setting_type}--{e}")
-            return False
+        CreateModel = self.factory.get_create_model()
+        create_obj = CreateModel(**data)
+        self.validator.validate_create(create_obj)
+        return self.repo.add(create_obj)
 
     def update(self, data: dict[str, Any]) -> Any:
         try:
@@ -37,12 +32,7 @@ class SettingHandler():
             return False
 
     def delete(self, data: dict[str, Any]) -> Any:
-        try:
-            self.repo.delete(data)
-            return True
-        except Exception as e:
-            logging.error(f"Get an error when delete---{self.setting_type}--{e}")
-            return False
+        return self.repo.delete(data)
 
     def search(self) -> list:
         try:

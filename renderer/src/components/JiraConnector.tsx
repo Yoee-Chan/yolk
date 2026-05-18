@@ -36,7 +36,12 @@ interface OAuthAppStatus {
     has_client_secret: boolean;
 }
 
-export default function JiraConnector() {
+type JiraConnectorProps = {
+    /** 嵌入连接器详情页时使用，隐藏外层标题卡片样式由父级承担 */
+    embedded?: boolean;
+};
+
+export default function JiraConnector({embedded = false}: JiraConnectorProps) {
     const [form] = Form.useForm();
     const [appForm] = Form.useForm();
     const [status, setStatus] = useState<JiraStatus | null>(null);
@@ -186,21 +191,17 @@ export default function JiraConnector() {
           ? 2
           : 0;
 
-    return (
-        <Card
-            title="Jira 连接器"
-            className="setting-section"
-            extra={
-                status?.connected ? (
-                    <Text type="success">
-                        已连接
-                        {status.display_name ? ` · ${status.display_name}` : ''}
-                    </Text>
-                ) : (
-                    <Text type="secondary">未连接</Text>
-                )
-            }
-        >
+    const connectionExtra = status?.connected ? (
+        <Text type="success">
+            已连接
+            {status.display_name ? ` · ${status.display_name}` : ''}
+        </Text>
+    ) : (
+        <Text type="secondary">未连接</Text>
+    );
+
+    const inner = (
+        <>
             <Alert
                 type="info"
                 showIcon
@@ -405,6 +406,28 @@ export default function JiraConnector() {
                     </>
                 )}
             </Card>
+        </>
+    );
+
+    if (embedded) {
+        return (
+            <Card
+                className="setting-section"
+                extra={connectionExtra}
+                styles={{body: {paddingTop: 0}}}
+            >
+                {inner}
+            </Card>
+        );
+    }
+
+    return (
+        <Card
+            title="Jira 连接器"
+            className="setting-section"
+            extra={connectionExtra}
+        >
+            {inner}
         </Card>
     );
 }
