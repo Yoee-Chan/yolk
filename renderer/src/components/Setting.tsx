@@ -1,6 +1,5 @@
 import React from 'react';
 import '../css/Setting.css';
-import JiraConnector from './JiraConnector';
 import WorkSpaceSetting from './setting/WorkSpaceSetting';
 import McpServerSetting from './setting/McpServerSetting';
 import LlmProviderSetting from './setting/LlmProviderSetting';
@@ -10,7 +9,6 @@ export default function Setting() {
     return (
         <div className="setting">
             <WorkSpaceSetting/>
-            <JiraConnector/>
             <McpServerSetting/>
             <LlmProviderSetting/>
             <RiskSetting/>

@@ -8,6 +8,7 @@ import NewTask from "../../components/NewTask";
 import PipelineTask from "../../components/PipelineTask";
 import TokenMange from "../../components/TokenMange";
 import Setting from "../../components/Setting";
+import Connectors from "../../components/Connectors";
 
 
 const PageMap = {
@@ -16,6 +17,7 @@ const PageMap = {
     pipelineTask: PipelineTask,
     tokenMange: TokenMange,
     skill: Found,
+    connection: Connectors,
     setting: Setting
 }
 
