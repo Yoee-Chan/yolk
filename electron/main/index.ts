@@ -108,8 +108,33 @@ function parseAgentToolsOutput(output: string): unknown {
 }
 
 
+/** 仅对 Yolk 渲染页注入 CSP；OAuth 弹窗等外部页面不能加，否则 Atlassian 登录页会白屏。 */
+function isYolkRendererUrl(url: string): boolean {
+    if (url.startsWith('file://')) {
+        return true
+    }
+    try {
+        const u = new URL(url)
+        const host = u.hostname
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+            return false
+        }
+        if (is.dev) {
+            return true
+        }
+        return u.protocol === 'http:' || u.protocol === 'https:'
+    } catch {
+        return false
+    }
+}
+
 function registerContentSecurityPolicy() {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        if (!isYolkRendererUrl(details.url)) {
+            callback({responseHeaders: details.responseHeaders})
+            return
+        }
+
         const devConnect =
             "connect-src 'self' http://localhost:* ws://localhost:* http://127.0.0.1:* ws://127.0.0.1:*"
         const csp = [
