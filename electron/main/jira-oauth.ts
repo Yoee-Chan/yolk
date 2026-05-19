@@ -89,6 +89,20 @@ export function runAtlassianOAuthFlow(
 
         authWin.webContents.on('will-redirect', (_e, url) => handleNav(url))
         authWin.webContents.on('will-navigate', (_e, url) => handleNav(url))
+        authWin.webContents.on(
+            'did-fail-load',
+            (_e, errorCode, errorDescription, validatedURL) => {
+                if (settled) return
+                finish(() =>
+                    reject(
+                        new Error(
+                            `无法加载 Atlassian 登录页 (${errorCode}): ${errorDescription}` +
+                                (validatedURL ? ` — ${validatedURL}` : '')
+                        )
+                    )
+                )
+            }
+        )
         authWin.on('closed', () => {
             finish(() => reject(new Error('用户关闭了登录窗口')))
         })
