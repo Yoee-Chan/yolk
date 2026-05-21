@@ -8,6 +8,7 @@ import {
     getConnectorById,
 } from './connectors/connectorCatalog';
 import JiraConnector from './JiraConnector';
+import WeChatConnector from './WeChatConnector';
 import {callSetting} from './setting/settingApi';
 
 const {Paragraph} = Typography;
@@ -107,6 +108,10 @@ function ConnectorDetail({
                 <div className="connector-detail-form">
                     <JiraConnector embedded />
                 </div>
+            ) : connector.id === 'wechat' && connector.available ? (
+                <div className="connector-detail-form">
+                    <WeChatConnector embedded />
+                </div>
             ) : (
                 <div className="connector-coming-soon">
                     <Paragraph style={{margin: 0}}>
@@ -169,22 +174,32 @@ function ConnectorTile({
 export default function Connectors() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [jiraConnected, setJiraConnected] = useState(false);
+    const [wechatConnected, setWechatConnected] = useState(false);
 
-    const loadJiraStatus = useCallback(async () => {
+    const loadConnectorStatus = useCallback(async () => {
         try {
-            const result = await callSetting({
+            const jira = await callSetting({
                 SettingType: 'jira_connector',
                 cmd: 'search',
             });
-            setJiraConnected(Boolean((result as {connected?: boolean}).connected));
+            setJiraConnected(Boolean((jira as {connected?: boolean}).connected));
         } catch {
             setJiraConnected(false);
+        }
+        try {
+            const wechat = await callSetting({
+                SettingType: 'wechat_connector',
+                cmd: 'search',
+            });
+            setWechatConnected(Boolean((wechat as {connected?: boolean}).connected));
+        } catch {
+            setWechatConnected(false);
         }
     }, []);
 
     useEffect(() => {
-        loadJiraStatus().catch(console.error);
-    }, [loadJiraStatus]);
+        loadConnectorStatus().catch(console.error);
+    }, [loadConnectorStatus]);
 
     const selected = selectedId ? getConnectorById(selectedId) : undefined;
 
@@ -194,7 +209,7 @@ export default function Connectors() {
                 connector={selected}
                 onBack={() => {
                     setSelectedId(null);
-                    loadJiraStatus().catch(console.error);
+                    loadConnectorStatus().catch(console.error);
                 }}
             />
         );
@@ -215,7 +230,11 @@ export default function Connectors() {
                         key={connector.id}
                         connector={connector}
                         connected={
-                            connector.id === 'jira' ? jiraConnected : false
+                            connector.id === 'jira'
+                                ? jiraConnected
+                                : connector.id === 'wechat'
+                                  ? wechatConnected
+                                  : false
                         }
                         onSelect={setSelectedId}
                     />

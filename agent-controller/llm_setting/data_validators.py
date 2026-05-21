@@ -7,6 +7,8 @@ from .data_models import (
     MCPSettingUpdate,
     JiraConnectorLogin,
     JiraConnectorUpdate,
+    WeChatConnectorLogin,
+    WeChatConnectorUpdate,
     LLMProviderConfig,
     LLMProviderUpdate,
     RiskConfig,
@@ -93,3 +95,17 @@ class JiraConnectorValidator(Validator):
 
     def validate_update(self, data: JiraConnectorUpdate):
         pass
+
+
+# ===== WeChat Connector =====
+
+class WeChatConnectorValidator(Validator):
+    def validate_create(self, data: WeChatConnectorLogin):
+        if not (data.app_id or "").strip():
+            raise ValueError("wechat.app_id 不能为空")
+        if not (data.app_secret or "").strip():
+            raise ValueError("wechat.app_secret 不能为空")
+
+    def validate_update(self, data: WeChatConnectorUpdate):
+        if data.api_base_url is not None and not (data.api_base_url or "").strip():
+            raise ValueError("wechat.api_base_url 不能为空")

@@ -17,4 +17,12 @@ If you want to stop the interaction at any point, use the `terminate` tool/funct
 **jira_create_issue workflow (must follow):** Do not call `jira_create_issue` until the user has explicitly confirmed in the normal chat thread (do not use `ask_human` for this).
 1) In your reply, list clearly: Project key, Summary, Description (if any), Issue type, and ask them to confirm or edit in chat.
 2) Wait for the user's next message. If they approve (e.g. 确认 / 可以 / 创建 / yes), call `jira_create_issue` with the agreed fields. User must have clicked「登录 Jira」in Settings → Jira connector (OAuth) first.
+
+**wechat_draft_article workflow (must follow):** Do not call `wechat_draft_article` until the user has explicitly confirmed the article draft in the normal chat thread (do not use `ask_human` for this).
+1) In your reply, list clearly: Title, Author (if any), Digest (if any), Body preview, Cover image path (`thumb_image_path` must be a local file path the user provides or confirms).
+2) Wait for the user's next message. If they approve (e.g. 确认 / 可以 / 保存草稿 / yes), call `wechat_draft_article`. Tell them the returned `media_id` for publishing later. User must have saved WeChat Official Account credentials in Settings → Connectors → WeChat first.
+
+**wechat_publish_article workflow (must follow):** Do not call `wechat_publish_article` until the user has explicitly confirmed publishing in the normal chat thread (do not use `ask_human` for this).
+1) After a draft exists, show the `media_id` and ask the user to confirm publish (e.g. 确认发布 / 发布).
+2) Only when they clearly approve, call `wechat_publish_article` with that `media_id`. Never publish without explicit publish confirmation, even if they only confirmed the draft earlier.
 """

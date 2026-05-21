@@ -34,6 +34,10 @@ os.environ.setdefault(
     "YOLK_JIRA_CONNECTOR_JSON",
     os.path.join(SCRIPT_DIR, "llm_config", "jira_connector.json"),
 )
+os.environ.setdefault(
+    "YOLK_WECHAT_CONNECTOR_JSON",
+    os.path.join(SCRIPT_DIR, "llm_config", "wechat_connector.json"),
+)
 if not getattr(sys, "frozen", False):
     sys.path.insert(0, LLM_ENGINE_DIR)
 

@@ -17,4 +17,6 @@ def get_cmd(handler: SettingHandler, param: Any, setting_type: str) -> Dict[str,
         cmds["oauth_app_save"] = lambda: handler.oauth_app_save(param)
         cmds["oauth_start"] = lambda: handler.oauth_start(param)
         cmds["oauth_finish"] = lambda: handler.oauth_finish(param)
+    if setting_type == "wechat_connector":
+        cmds["test"] = lambda: handler.test_connection(param)
     return cmds
