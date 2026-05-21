@@ -38,3 +38,7 @@ class ConfigPaths:
     @property
     def jira_connector_json(self):
         return os.path.join(self.base_dir, "llm_config", "jira_connector.json")
+
+    @property
+    def wechat_connector_json(self):
+        return os.path.join(self.base_dir, "llm_config", "wechat_connector.json")

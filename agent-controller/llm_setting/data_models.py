@@ -149,3 +149,45 @@ class JiraConnectorStatus:
 @dataclass
 class JiraConnectorUpdate:
     default_project_key: Optional[str] = None
+
+
+# ===== WeChat Official Account Connector =====
+
+@dataclass
+class WeChatConnectorConfig:
+    """持久化配置（密钥与 token 均为加密密文）。"""
+
+    account_name: str = ""
+    app_id: str = ""
+    app_secret_encrypted: str = ""
+    api_base_url: str = "https://api.weixin.qq.com"
+    access_token_encrypted: str = ""
+    token_expires_at: float = 0
+    default_author: str = ""
+
+
+@dataclass
+class WeChatConnectorLogin:
+    account_name: str
+    app_id: str
+    app_secret: str
+    api_base_url: str = "https://api.weixin.qq.com"
+    default_author: str = ""
+
+
+@dataclass
+class WeChatConnectorStatus:
+    account_name: str
+    app_id: str
+    connected: bool
+    api_base_url: str = ""
+    default_author: str = ""
+    has_app_secret: bool = False
+
+
+@dataclass
+class WeChatConnectorUpdate:
+    account_name: Optional[str] = None
+    api_base_url: Optional[str] = None
+    default_author: Optional[str] = None
+    app_secret: Optional[str] = None

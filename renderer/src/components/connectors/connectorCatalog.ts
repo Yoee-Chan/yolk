@@ -52,6 +52,33 @@ export const CONNECTORS: ConnectorDefinition[] = [
         ],
     },
     {
+        id: 'wechat',
+        name: 'WeChat Official Account',
+        description:
+            'Connect your WeChat Official Account to save article drafts and publish after your confirmation in chat.',
+        accent: '#e8f8ec',
+        accentBorder: '#b8e6c8',
+        iconLetter: 'W',
+        available: true,
+        requiredFields: [
+            {key: 'app_id', label: 'AppID', description: 'From WeChat MP admin → Development'},
+            {
+                key: 'app_secret',
+                label: 'AppSecret',
+                description: 'Stored encrypted locally only',
+            },
+        ],
+        optionalFields: [
+            {key: 'account_name', label: 'Account name', description: 'Display label only'},
+            {
+                key: 'api_base_url',
+                label: 'API base URL',
+                description: 'Use proxy URL when forwarding via your server',
+            },
+            {key: 'default_author', label: 'Default author'},
+        ],
+    },
+    {
         id: 'outlook',
         name: 'Outlook',
         description: '连接 Microsoft 365 邮箱，发送与读取邮件。',

@@ -5,6 +5,7 @@ from llm_setting.setting_factories import (
     WorkspaceSettingFactory,
     MCPSettingFactory,
     JiraConnectorSettingFactory,
+    WeChatConnectorSettingFactory,
     LLMProviderSettingFactory,
     RiskSettingFactory,
 )
@@ -23,6 +24,7 @@ SETTING_REGISTRY: dict[str, SettingFactory] = {
     "workspace": WorkspaceSettingFactory(get_path()),
     "mcp": MCPSettingFactory(get_path()),
     "jira_connector": JiraConnectorSettingFactory(get_path()),
+    "wechat_connector": WeChatConnectorSettingFactory(get_path()),
     "llm_provider": LLMProviderSettingFactory(get_path()),
     "risk": RiskSettingFactory(get_path()),
 }

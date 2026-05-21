@@ -7,6 +7,7 @@ from .setting_repositories import (
     WorkspaceSettingRepository,
     MCPSettingRepository,
     JiraConnectorRepository,
+    WeChatConnectorRepository,
     LLMProviderRepository,
     RiskConfigRepository,
 )
@@ -15,6 +16,7 @@ from .data_validators import (
     WorkspaceSettingValidator,
     MCPSettingValidator,
     JiraConnectorValidator,
+    WeChatConnectorValidator,
     LLMProviderValidator,
     RiskConfigValidator,
 )
@@ -25,6 +27,8 @@ from .data_models import (
     MCPSettingUpdate,
     JiraConnectorLogin,
     JiraConnectorUpdate,
+    WeChatConnectorLogin,
+    WeChatConnectorUpdate,
     LLMProviderConfig,
     LLMProviderUpdate,
     RiskConfig,
@@ -132,6 +136,32 @@ class JiraConnectorSettingFactory(SettingFactory):
 
     def get_update_model(self):
         return JiraConnectorUpdate
+
+    def get_risk_strategy(self, action: str) -> RiskStrategy:
+        if action in ("add", "delete"):
+            return HighRiskStrategy()
+        return MediumRiskStrategy()
+
+
+class WeChatConnectorSettingFactory(SettingFactory):
+    def __init__(self, paths: ConfigPaths) -> None:
+        import os
+
+        os.makedirs(os.path.dirname(paths.wechat_connector_json), exist_ok=True)
+        self._repo = WeChatConnectorRepository(paths.wechat_connector_json)
+        self._validator = WeChatConnectorValidator()
+
+    def get_repository(self):
+        return self._repo
+
+    def get_validator(self):
+        return self._validator
+
+    def get_create_model(self):
+        return WeChatConnectorLogin
+
+    def get_update_model(self):
+        return WeChatConnectorUpdate
 
     def get_risk_strategy(self, action: str) -> RiskStrategy:
         if action in ("add", "delete"):

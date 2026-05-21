@@ -10,6 +10,7 @@ import time
 
 from connectors.crypto import decrypt_secret, encrypt_secret
 from connectors.jira.client import JiraClient, JiraClientError
+from connectors.wechat.client import WeChatClient, WeChatClientError
 from connectors.jira.oauth import (
     JiraOAuthError,
     build_authorize_url,
@@ -35,6 +36,10 @@ from .data_models import (
     JiraConnectorLogin,
     JiraConnectorUpdate,
     JiraConnectorStatus,
+    WeChatConnectorConfig,
+    WeChatConnectorLogin,
+    WeChatConnectorUpdate,
+    WeChatConnectorStatus,
     LLMProviderConfig,
     LLMProviderUpdate,
     RiskConfig,
@@ -549,4 +554,138 @@ class JiraConnectorRepository(
             auth_type=cfg.auth_type or ("oauth" if cfg.cloud_id else "api_token"),
             default_project_key=cfg.default_project_key,
             display_name=cfg.display_name,
+        )
+
+
+class WeChatConnectorRepository(
+    JSONSettingRepository[WeChatConnectorConfig],
+    SettingRepository[WeChatConnectorLogin, WeChatConnectorUpdate, WeChatConnectorConfig, dict],
+):
+    def __init__(self, json_path: str) -> None:
+        super().__init__(json_path)
+        self._ensure_loaded()
+
+    def _ensure_loaded(self) -> None:
+        self.load(WeChatConnectorConfig)
+
+    def _client_from_login(self, login: WeChatConnectorLogin) -> WeChatClient:
+        return WeChatClient(
+            login.app_id.strip(),
+            login.app_secret.strip(),
+            api_base=(login.api_base_url or "https://api.weixin.qq.com").strip(),
+        )
+
+    def _ensure_fresh_token(self, cfg: WeChatConnectorConfig) -> WeChatClient:
+        secret = decrypt_secret(cfg.app_secret_encrypted)
+        if not cfg.app_id or not secret:
+            raise ValueError("微信公众号未配置或 AppSecret 无效")
+        client = WeChatClient(
+            cfg.app_id,
+            secret,
+            api_base=cfg.api_base_url or "https://api.weixin.qq.com",
+            access_token=decrypt_secret(cfg.access_token_encrypted),
+            token_expires_at=cfg.token_expires_at,
+        )
+        if time.time() >= cfg.token_expires_at - 120:
+            client.get_access_token(force_refresh=True)
+            cfg.access_token_encrypted = encrypt_secret(client._access_token)
+            cfg.token_expires_at = client.token_expires_at
+            self.save()
+        return client
+
+    def client_from_store(self) -> WeChatClient | None:
+        cfg: WeChatConnectorConfig = self.get_store()
+        secret = decrypt_secret(cfg.app_secret_encrypted)
+        if not cfg.app_id or not secret:
+            return None
+        try:
+            return self._ensure_fresh_token(cfg)
+        except (ValueError, WeChatClientError):
+            return None
+
+    def add(self, data: WeChatConnectorLogin) -> WeChatConnectorStatus:
+        client = self._client_from_login(data)
+        try:
+            client.test_connection()
+        except WeChatClientError as e:
+            raise ValueError(str(e)) from e
+
+        cfg = WeChatConnectorConfig(
+            account_name=(data.account_name or "").strip(),
+            app_id=data.app_id.strip(),
+            app_secret_encrypted=encrypt_secret(data.app_secret.strip()),
+            api_base_url=(data.api_base_url or "https://api.weixin.qq.com").strip().rstrip("/"),
+            access_token_encrypted=encrypt_secret(client._access_token),
+            token_expires_at=client.token_expires_at,
+            default_author=(data.default_author or "").strip(),
+        )
+        self._store = cfg
+        self.save()
+        return self._to_status(cfg)
+
+    def update(self, param: dict, data: WeChatConnectorUpdate) -> WeChatConnectorStatus:
+        self._ensure_loaded()
+        cfg: WeChatConnectorConfig = self.get_store()
+        if data.account_name is not None:
+            cfg.account_name = data.account_name.strip()
+        if data.api_base_url is not None:
+            cfg.api_base_url = data.api_base_url.strip().rstrip("/") or "https://api.weixin.qq.com"
+        if data.default_author is not None:
+            cfg.default_author = data.default_author.strip()
+        if data.app_secret is not None and data.app_secret.strip():
+            cfg.app_secret_encrypted = encrypt_secret(data.app_secret.strip())
+            cfg.access_token_encrypted = ""
+            cfg.token_expires_at = 0
+        self.save()
+        if cfg.app_id and cfg.app_secret_encrypted:
+            try:
+                self._ensure_fresh_token(cfg)
+            except WeChatClientError as e:
+                raise ValueError(str(e)) from e
+        return self._to_status(cfg)
+
+    def delete(self, param: dict | None = None) -> None:
+        self._store = WeChatConnectorConfig()
+        self.save()
+
+    def get(self, param: dict | None = None) -> WeChatConnectorStatus:
+        self._ensure_loaded()
+        return self._to_status(self.get_store())
+
+    def list(self) -> WeChatConnectorStatus:
+        return self.get()
+
+    def test_connection(self, param: dict | None = None) -> dict:
+        if param and (param.get("app_id") or param.get("app_secret")):
+            login = WeChatConnectorLogin(
+                account_name=param.get("account_name", ""),
+                app_id=param.get("app_id", ""),
+                app_secret=param.get("app_secret", ""),
+                api_base_url=param.get("api_base_url", "https://api.weixin.qq.com"),
+            )
+            client = self._client_from_login(login)
+        else:
+            client = self.client_from_store()
+            if not client:
+                raise ValueError("尚未配置微信公众号连接器，请先在设置中保存 AppID 与 AppSecret")
+        try:
+            result = client.test_connection()
+        except WeChatClientError as e:
+            raise ValueError(str(e)) from e
+        return {
+            "ok": True,
+            "account_name": self.get_store().account_name,
+            "ip_list": result.get("ip_list", []),
+        }
+
+    @staticmethod
+    def _to_status(cfg: WeChatConnectorConfig) -> WeChatConnectorStatus:
+        connected = bool(cfg.app_id and cfg.app_secret_encrypted)
+        return WeChatConnectorStatus(
+            account_name=cfg.account_name,
+            app_id=cfg.app_id,
+            connected=connected,
+            api_base_url=cfg.api_base_url or "https://api.weixin.qq.com",
+            default_author=cfg.default_author,
+            has_app_secret=bool(cfg.app_secret_encrypted),
         )
