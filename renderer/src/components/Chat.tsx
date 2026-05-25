@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {cloudApi, getStoredToken} from '../api/cloudApi';
 import '../css/Chat.css';
 
 type PendingHumanInput = {
@@ -30,7 +31,25 @@ type StreamPayload = {
     type?: string;
     text?: string;
     id?: string;
+    taskId?: string;
 };
+
+export interface ChatProps {
+    taskId: string | null;
+    sessionId: string | null;
+    initialMessages: Array<{role: 'user' | 'assistant'; content: string}> | null;
+    showWelcome: boolean;
+    onTaskTitleUpdated?: (taskId: string, title: string) => void;
+    onTasksChanged?: () => void;
+    /** \u5df2\u767b\u5f55\u4e14\u5c1a\u672a\u9009\u4e2d\u4efb\u52a1\u65f6\uff0c\u53d1\u9001\u524d\u81ea\u52a8\u521b\u5efa\u4efb\u52a1 */
+    onEnsureTask?: () => Promise<{taskId: string; sessionId: string}>;
+}
+
+const WELCOME_TEXT =
+    '\u5728\u4e0b\u65b9\u8f93\u5165\u95ee\u9898\u540e\uff0c\u7cfb\u7edf\u4f1a\u5148\u8bf7\u6a21\u578b\u6574\u7406\u300c\u6267\u884c\u8ba1\u5212\u3001\u6240\u9700\u6743\u9650\u3001\u5c06\u4f7f\u7528\u7684\u7a0b\u5e8f\u300d\u5e76\u8bf7\u4f60\u786e\u8ba4\uff1b\u786e\u8ba4\u540e\u624d\u4f1a\u542f\u52a8 Agent \u4e0e\u5de5\u5177\u3002\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002\u9996\u6b21\u53d1\u9001\u6d88\u606f\u5c06\u81ea\u52a8\u5728\u5de6\u4fa7\u521b\u5efa\u4efb\u52a1\u8bb0\u5f55\u3002';
+
+const LOCAL_WELCOME_TEXT =
+    '\u5728\u4e0b\u65b9\u8f93\u5165\u95ee\u9898\u540e\uff0c\u7cfb\u7edf\u4f1a\u5148\u8bf7\u6a21\u578b\u6574\u7406\u300c\u6267\u884c\u8ba1\u5212\u3001\u6240\u9700\u6743\u9650\u3001\u5c06\u4f7f\u7528\u7684\u7a0b\u5e8f\u300d\u5e76\u8bf7\u4f60\u786e\u8ba4\uff1b\u786e\u8ba4\u540e\u624d\u4f1a\u542f\u52a8 Agent \u4e0e\u5de5\u5177\u3002\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002\u767b\u5f55\u540e\u53ef\u4fdd\u5b58\u4efb\u52a1\u5386\u53f2\u3002';
 
 const PROTOCOL_TYPES = new Set([
     'result',
@@ -39,11 +58,28 @@ const PROTOCOL_TYPES = new Set([
     'need_input',
     'need_plan_confirm',
     'done',
+    'task_title',
 ]);
 
-/** 与 agent-controller / human_input_bridge 约定 */
 const PLAN_DECISION_CONFIRM = '__PLAN_CONFIRM__';
 const PLAN_DECISION_CANCEL = '__PLAN_CANCEL__';
+
+function buildInitialMessages(
+    initialMessages: ChatProps['initialMessages'],
+    showWelcome: boolean
+): ChatMessage[] {
+    if (initialMessages && initialMessages.length > 0) {
+        return initialMessages.map((m) => ({
+            kind: 'text' as const,
+            role: m.role,
+            content: m.content,
+        }));
+    }
+    if (showWelcome) {
+        return [{kind: 'text', role: 'assistant', content: WELCOME_TEXT}];
+    }
+    return [];
+}
 
 function parseProtocolLine(trimmed: string): StreamPayload | null {
     if (!trimmed.startsWith('{')) {
@@ -75,7 +111,7 @@ function parseLineBuffer(
     return {lines: parts, carry: nextCarry};
 }
 
-/** 与 local-llm-engine `toolcall.think` 中 `logger.info(f"✨ {self.name}'s thoughts: ...")` 对齐 */
+/** ? local-llm-engine `toolcall.think` ? thoughts ???? */
 function parseThoughtsFromLogLine(line: string): string | null {
     const lower = line.toLowerCase();
     const key = 'thoughts:';
@@ -97,13 +133,13 @@ function DiagPanel({plan, infoLines}: {plan: string; infoLines: string[]}) {
         <div className="chat-diag">
             {hasPlan ? (
                 <details className="chat-diag-plan">
-                    <summary>模型计划</summary>
+                    <summary>{'\u6a21\u578b\u8ba1\u5212'}</summary>
                     <pre className="chat-diag-pre">{plan}</pre>
                 </details>
             ) : null}
             {hasInfo ? (
                 <div className="chat-diag-conn">
-                    <div className="chat-diag-conn-title">连接信息</div>
+                    <div className="chat-diag-conn-title">{'\u8fde\u63a5\u4fe1\u606f'}</div>
                     <pre className="chat-diag-pre chat-diag-conn-pre">
                         {infoLines.join('\n')}
                     </pre>
@@ -113,16 +149,23 @@ function DiagPanel({plan, infoLines}: {plan: string; infoLines: string[]}) {
     );
 }
 
-export default function Chat() {
+export default function Chat({
+    taskId,
+    sessionId,
+    initialMessages,
+    showWelcome,
+    onTaskTitleUpdated,
+    onTasksChanged,
+    onEnsureTask,
+}: ChatProps) {
+    const isLocalOnly = initialMessages === null;
     const [input, setInput] = useState('');
-    const [messages, setMessages] = useState<ChatMessage[]>([
-        {
-            kind: 'text',
-            role: 'assistant',
-            content:
-                '在下方输入问题后，系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具。取消则不会执行任何操作。模型通过 agent-controller 连接 local-llm-engine（请在 local-llm-engine/config/config.toml 配置 base_url）；应用启动时会预热 Python 子进程。',
-        },
-    ]);
+    const [messages, setMessages] = useState<ChatMessage[]>(() =>
+        isLocalOnly
+            ? [{kind: 'text', role: 'assistant', content: LOCAL_WELCOME_TEXT}]
+            : buildInitialMessages(initialMessages, showWelcome)
+    );
+
     const [busy, setBusy] = useState(false);
     const [pendingHumanInput, setPendingHumanInput] =
         useState<PendingHumanInput | null>(null);
@@ -134,6 +177,37 @@ export default function Chat() {
     const stderrCarry = useRef('');
     const sawProtocolPayload = useRef(false);
     const runIdRef = useRef(0);
+    const streamingAssistantRef = useRef('');
+    /** \u5f53\u524d\u8f6e\u6b21\u4f7f\u7528\u7684\u4efb\u52a1 ID */
+    const runTaskIdRef = useRef<string | null>(taskId);
+
+    useEffect(() => {
+        runTaskIdRef.current = taskId;
+    }, [taskId]);
+
+    const persistMessage = useCallback(
+        async (role: 'user' | 'assistant', content: string) => {
+            const id = runTaskIdRef.current;
+            if (!id || !content.trim()) {
+                return;
+            }
+            try {
+                await cloudApi.appendChatMessage(id, role, content);
+                onTasksChanged?.();
+            } catch {
+                /* ignore */
+            }
+        },
+        [onTasksChanged]
+    );
+
+    const flushStreamingAssistant = useCallback(async () => {
+        const content = streamingAssistantRef.current.trim();
+        streamingAssistantRef.current = '';
+        if (content) {
+            await persistMessage('assistant', content);
+        }
+    }, [persistMessage]);
 
     const appendAssistant = useCallback((content: string) => {
         setMessages((prev) => [
@@ -146,7 +220,15 @@ export default function Chat() {
         (msg: StreamPayload) => {
             sawProtocolPayload.current = true;
             const t = msg.type;
+
+            if (t === 'task_title' && msg.taskId && msg.text) {
+                onTaskTitleUpdated?.(msg.taskId, msg.text);
+                onTasksChanged?.();
+                return;
+            }
+
             if (t === 'stream' && typeof msg.text === 'string') {
+                streamingAssistantRef.current += msg.text;
                 setMessages((prev) => {
                     const last = prev[prev.length - 1];
                     if (last?.kind === 'text' && last.role === 'assistant') {
@@ -168,23 +250,28 @@ export default function Chat() {
                 return;
             }
             if (t === 'done') {
-                // 子进程常驻等下一条 run；单次推理结束以 done 为准，否则 busy 会一直为 true
+                void flushStreamingAssistant();
                 setBusy(false);
                 return;
             }
             if (t === 'result' && typeof msg.text === 'string') {
+                streamingAssistantRef.current = msg.text;
                 appendAssistant(msg.text);
+                void flushStreamingAssistant();
                 setBusy(false);
                 return;
             }
             if (t === 'error' && typeof msg.text === 'string') {
-                appendAssistant(`[错误] ${msg.text}`);
+                const errText = `[\u9519\u8bef] ${msg.text}`;
+                streamingAssistantRef.current = errText;
+                appendAssistant(errText);
+                void flushStreamingAssistant();
                 setBusy(false);
                 return;
             }
             if (t === 'need_input' && msg.id != null) {
                 const prompt =
-                    typeof msg.text === 'string' ? msg.text : '需要你的输入';
+                    typeof msg.text === 'string' ? msg.text : '\u8bf7\u8f93\u5165\u5185\u5bb9';
                 setHumanDraft('');
                 setPendingHumanInput({id: String(msg.id), promptText: prompt});
                 return;
@@ -198,7 +285,7 @@ export default function Chat() {
                 });
             }
         },
-        [appendAssistant]
+        [appendAssistant, flushStreamingAssistant, onTaskTitleUpdated, onTasksChanged]
     );
 
     useEffect(() => {
@@ -320,10 +407,32 @@ export default function Chat() {
         window.api.cancelPython();
     };
 
-    const sendMessage = () => {
+    const needsTaskSelection = !isLocalOnly && !taskId && !onEnsureTask;
+
+    const sendMessage = async () => {
         const text = input.trim();
-        if (!text) {
+        if (!text || needsTaskSelection) {
             return;
+        }
+
+        let effectiveTaskId = taskId;
+        let effectiveSessionId = sessionId;
+        if (!isLocalOnly && !effectiveTaskId && onEnsureTask) {
+            try {
+                const ensured = await onEnsureTask();
+                effectiveTaskId = ensured.taskId;
+                effectiveSessionId = ensured.sessionId;
+                runTaskIdRef.current = ensured.taskId;
+            } catch (err) {
+                const detail =
+                    err instanceof Error ? err.message : '????';
+                appendAssistant(
+                    `[??] ???????${detail}?????????????? yolk-cloud ???? sql/patch_chat_tasks.sql ??????`
+                );
+                return;
+            }
+        } else {
+            runTaskIdRef.current = effectiveTaskId;
         }
 
         if (busy) {
@@ -334,6 +443,7 @@ export default function Chat() {
 
         runIdRef.current += 1;
         const runId = runIdRef.current;
+        streamingAssistantRef.current = '';
 
         const historyForApi = messages
             .filter(
@@ -343,6 +453,18 @@ export default function Chat() {
             )
             .map((m) => ({role: m.role, content: m.content}))
             .slice(-40);
+
+        const userMsgCount = historyForApi.filter((m) => m.role === 'user').length;
+        const isFirstMessage = userMsgCount === 0;
+
+        if (effectiveTaskId) {
+            try {
+                await cloudApi.appendChatMessage(effectiveTaskId, 'user', text);
+                onTasksChanged?.();
+            } catch {
+                /* ignore */
+            }
+        }
 
         setMessages((prev) => [
             ...prev,
@@ -355,11 +477,17 @@ export default function Chat() {
         stderrCarry.current = '';
         sawProtocolPayload.current = false;
 
+        const authToken = getStoredToken();
         window.api.runPython(
             {
                 msg: text,
                 history: historyForApi,
                 interruptPrevious: busy,
+                authToken: authToken ?? undefined,
+                apiUrl: import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080',
+                logSessionId: effectiveSessionId ?? String(runId),
+                taskId: effectiveTaskId ?? undefined,
+                isFirstMessage,
             },
 
             (data) => {
@@ -415,11 +543,11 @@ export default function Chat() {
 
                 if (!sawProtocolPayload.current) {
                     appendAssistant(
-                        '本次运行没有在输出里收到模型结果（只有日志时会被忽略）。请确认 LLM 配置与网络，或查看开发者工具里主进程的 stderr。'
+                        '\u672c\u6b21\u8fd0\u884c\u6ca1\u6709\u5728\u8f93\u51fa\u91cc\u6536\u5230\u6a21\u578b\u7ed3\u679c\uff08\u53ea\u6709\u65e5\u5fd7\u65f6\u4f1a\u88ab\u5ffd\u7565\uff09\u3002\u8bf7\u786e\u8ba4 LLM \u914d\u7f6e\u4e0e\u7f51\u7edc\uff0c\u6216\u67e5\u770b\u5f00\u53d1\u8005\u5de5\u5177\u91cc\u4e3b\u8fdb\u7a0b\u7684 stderr\u3002'
                     );
                 }
                 if (code !== 0 && code !== null) {
-                    appendAssistant(`[进程退出码 ${code}]`);
+                    appendAssistant(`[\u8fdb\u7a0b\u9000\u51fa\u7801 ${code}]`);
                 }
             }
         );
@@ -436,10 +564,12 @@ export default function Chat() {
                 >
                     <div className="chat-human-modal">
                         <div id="chat-plan-title" className="chat-human-title">
-                            请确认执行计划
+                            {'\u8bf7\u786e\u8ba4\u6267\u884c\u8ba1\u5212'}
                         </div>
                         <p className="chat-plan-hint">
-                            确认后将启动智能体并按计划调用工具；取消则不会执行任何操作。
+                            {
+                                '\u786e\u8ba4\u540e\u5c06\u542f\u52a8\u667a\u80fd\u4f53\u5e76\u6309\u8ba1\u5212\u8c03\u7528\u5de5\u5177\uff1b\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002'
+                            }
                         </p>
                         <pre className="chat-human-prompt chat-plan-body">
                             {pendingPlanConfirm.planText}
@@ -450,14 +580,14 @@ export default function Chat() {
                                 className="chat-human-cancel"
                                 onClick={cancelPlanConfirm}
                             >
-                                取消
+                                {'\u53d6\u6d88'}
                             </button>
                             <button
                                 type="button"
                                 className="chat-human-ok"
                                 onClick={submitPlanConfirm}
                             >
-                                确认执行
+                                {'\u786e\u8ba4\u6267\u884c'}
                             </button>
                         </div>
                     </div>
@@ -471,7 +601,7 @@ export default function Chat() {
                 >
                     <div className="chat-human-modal">
                         <div id="chat-human-title" className="chat-human-title">
-                            智能体请求输入
+                            {'\u667a\u80fd\u4f53\u8bf7\u6c42\u8f93\u5165'}
                         </div>
                         <pre className="chat-human-prompt">
                             {pendingHumanInput.promptText}
@@ -492,7 +622,7 @@ export default function Chat() {
                                     cancelHumanInput();
                                 }
                             }}
-                            placeholder="在此输入回复…（Enter 提交，Shift+Enter 换行，Esc 取消）"
+                            placeholder={'\u5728\u6b64\u8f93\u5165\u56de\u590d\u2026\uff08Enter \u63d0\u4ea4\uff0cShift+Enter \u6362\u884c\uff0cEsc \u53d6\u6d88\uff09'}
                         />
                         <div className="chat-human-actions">
                             <button
@@ -500,20 +630,27 @@ export default function Chat() {
                                 className="chat-human-cancel"
                                 onClick={cancelHumanInput}
                             >
-                                跳过（发送空内容）
+                                {'\u8df3\u8fc7\uff08\u53d1\u9001\u7a7a\u5185\u5bb9\uff09'}
                             </button>
                             <button
                                 type="button"
                                 className="chat-human-ok"
                                 onClick={submitHumanInput}
                             >
-                                提交
+                                {'\u63d0\u4ea4'}
                             </button>
                         </div>
                     </div>
                 </div>
             ) : null}
             <div className="chat-body">
+                {needsTaskSelection ? (
+                    <div className="chat-empty-hint">
+                        {
+                            '\u8bf7\u5148\u767b\u5f55\uff0c\u6216\u5728\u5de6\u4fa7\u70b9\u51fb\u300c\u521b\u5efa\u65b0\u4efb\u52a1\u300d\u3001\u9009\u62e9\u4e00\u6761\u5386\u53f2\u4efb\u52a1\u540e\u518d\u5f00\u59cb\u5bf9\u8bdd\u3002'
+                        }
+                    </div>
+                ) : null}
                 {messages.map((m, i) => {
                     if (m.kind === 'diag') {
                         return <DiagPanel key={i} plan={m.plan} infoLines={m.infoLines} />;
@@ -526,7 +663,7 @@ export default function Chat() {
                             }`}
                         >
                             <div className="msg-role">
-                                {m.role === 'user' ? '你' : 'AI'}
+                                {m.role === 'user' ? '\u4f60' : 'AI'}
                             </div>
                             <div>{m.content}</div>
                         </div>
@@ -536,12 +673,17 @@ export default function Chat() {
             <div className="chat-input">
                 <div className="chat-input-inner">
                     <input
-                        placeholder="输入你的问题..."
+                        placeholder={
+                            needsTaskSelection
+                                ? '\u8bf7\u5148\u521b\u5efa\u6216\u9009\u62e9\u4efb\u52a1\u2026'
+                                : '\u8f93\u5165\u4f60\u7684\u95ee\u9898...'
+                        }
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) =>
                             e.key === 'Enter' && !e.shiftKey && sendMessage()
                         }
+                        disabled={needsTaskSelection}
                     />
                     <div className="chat-input-actions">
                         {busy && !input.trim() ? (
@@ -550,16 +692,18 @@ export default function Chat() {
                                 className="chat-cancel"
                                 onClick={cancelRun}
                             >
-                                取消
+                                {'\u53d6\u6d88'}
                             </button>
                         ) : null}
                         <button
                             type="button"
                             className="chat-send"
                             onClick={sendMessage}
-                            disabled={!input.trim()}
+                            disabled={!input.trim() || needsTaskSelection}
                         >
-                            {busy ? '发送（将中断当前任务）' : '发送'}
+                            {busy
+                                ? '\u53d1\u9001\uff08\u5c06\u4e2d\u65ad\u5f53\u524d\u4efb\u52a1\uff09'
+                                : '\u53d1\u9001'}
                         </button>
                     </div>
                 </div>

@@ -22,7 +22,8 @@ import java.time.LocalDateTime;
 public class AuthService {
 
     private static final String DEFAULT_PLAN_ID = "pro";
-    private static final int MAX_AVATAR_LENGTH = 500_000;
+    /** Base64 数据 URL 字符长度上限（压缩后头像通常远小于此值） */
+    private static final int MAX_AVATAR_LENGTH = 4 * 1024 * 1024;
 
     private final UserMapper userMapper;
     private final UserTrafficMapper userTrafficMapper;
@@ -113,7 +114,7 @@ public class AuthService {
         }
         if (request.avatarUrl() != null) {
             if (request.avatarUrl().length() > MAX_AVATAR_LENGTH) {
-                throw new BusinessException(400, "头像数据过大");
+                throw new BusinessException(400, "头像图片不能超过 2M");
             }
             user.setAvatarUrl(request.avatarUrl().isBlank() ? null : request.avatarUrl());
         }

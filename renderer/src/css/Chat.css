@@ -18,6 +18,18 @@
     scroll-behavior: smooth;
 }
 
+.chat-empty-hint {
+    width: 100%;
+    max-width: min(680px, 88vw);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: rgba(59, 130, 246, 0.06);
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
 /* 消息气泡 */
 .msg {
     width: 100%;

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.chat.mapper.ChatMessageMapper">
+
+    <resultMap id="ChatMessageResultMap" type="com.yolk.chat.entity.ChatMessageEntity">
+        <id property="id" column="id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="role" column="role"/>
+        <result property="content" column="content"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_messages (task_id, user_id, role, content, sort_order, created_at)
+        VALUES (#{taskId}, #{userId}, #{role}, #{content}, #{sortOrder}, #{createdAt})
+    </insert>
+
+    <select id="countByTaskId" resultType="int">
+        SELECT COUNT(*) FROM chat_messages WHERE task_id = #{taskId}
+    </select>
+
+    <select id="nextSortOrder" resultType="int">
+        SELECT COALESCE(MAX(sort_order), -1) + 1 FROM chat_messages WHERE task_id = #{taskId}
+    </select>
+
+    <select id="findByTaskIdOrderBySortOrder" resultMap="ChatMessageResultMap">
+        SELECT id, task_id, user_id, role, content, sort_order, created_at
+        FROM chat_messages
+        WHERE task_id = #{taskId}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+</mapper>
