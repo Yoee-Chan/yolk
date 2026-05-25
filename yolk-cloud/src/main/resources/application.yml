@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: yolk-cloud
+  datasource:
+    url: jdbc:mysql://localhost:3306/yolk?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${MYSQL_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: false
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.yolk
+  configuration:
+    map-underscore-to-camel-case: true
+
+yolk:
+  jwt:
+    secret: ${JWT_SECRET:change-this-secret-in-production-must-be-at-least-32-chars}
+    expiration-ms: 604800000
+  cors:
+    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+
+logging:
+  level:
+    com.yolk: DEBUG
+    org.mybatis: DEBUG

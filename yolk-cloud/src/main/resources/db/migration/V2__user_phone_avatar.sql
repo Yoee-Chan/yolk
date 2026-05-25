@@ -1,0 +1,4 @@
+ALTER TABLE users
+    MODIFY email VARCHAR(128) NULL,
+    ADD COLUMN phone VARCHAR(20) NULL UNIQUE AFTER email,
+    ADD COLUMN avatar_url MEDIUMTEXT NULL AFTER nickname;

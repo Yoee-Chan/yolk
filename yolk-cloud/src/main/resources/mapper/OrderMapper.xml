@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.order.mapper.OrderMapper">
+
+    <resultMap id="OrderResultMap" type="com.yolk.order.entity.OrderEntity">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="packageId" column="package_id"/>
+        <result property="packageName" column="package_name"/>
+        <result property="tokens" column="tokens"/>
+        <result property="amount" column="amount"/>
+        <result property="status" column="status"/>
+        <result property="qrCodeUrl" column="qr_code_url"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="paidAt" column="paid_at"/>
+    </resultMap>
+
+    <sql id="OrderColumns">
+        id, user_id, package_id, package_name, tokens, amount, status, qr_code_url, created_at, paid_at
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO orders (id, user_id, package_id, package_name, tokens, amount, status, qr_code_url, created_at, paid_at)
+        VALUES (#{id}, #{userId}, #{packageId}, #{packageName}, #{tokens}, #{amount}, #{status}, #{qrCodeUrl}, #{createdAt}, #{paidAt})
+    </insert>
+
+    <update id="update">
+        UPDATE orders
+        SET status = #{status},
+            qr_code_url = #{qrCodeUrl},
+            paid_at = #{paidAt}
+        WHERE id = #{id}
+    </update>
+
+    <select id="findByIdAndUserId" resultMap="OrderResultMap">
+        SELECT <include refid="OrderColumns"/>
+        FROM orders
+        WHERE id = #{id} AND user_id = #{userId}
+    </select>
+
+    <select id="findByUserIdOrderByCreatedAtDesc" resultMap="OrderResultMap">
+        SELECT <include refid="OrderColumns"/>
+        FROM orders
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+</mapper>

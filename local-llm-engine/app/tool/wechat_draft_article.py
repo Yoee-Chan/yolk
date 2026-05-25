@@ -29,14 +29,17 @@ class WeChatDraftArticle(BaseTool):
             "title": {"type": "string", "description": "文章标题。"},
             "content": {
                 "type": "string",
-                "description": "正文，支持简单 Markdown 或 HTML。",
+                "description": "正文，支持简单 Markdown 或 HTML（推荐纯文本或 <p>...</p>）。",
             },
             "thumb_image_path": {
                 "type": "string",
                 "description": "封面图本地绝对路径（必填）。",
             },
             "author": {"type": "string", "description": "作者名，可选。"},
-            "digest": {"type": "string", "description": "摘要，可选。"},
+            "digest": {
+                "type": "string",
+                "description": "摘要，可选。不填时由微信自动抓取正文前 54 字；勿自行从正文拼超长摘要。",
+            },
             "content_is_html": {
                 "type": "boolean",
                 "description": "正文是否已是 HTML，默认 false（按 Markdown 处理）。",

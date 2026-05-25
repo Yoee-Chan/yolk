@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ipcMain, dialog, WebContents, session} from 'electron'
+import {app, BrowserWindow, ipcMain, dialog, WebContents, session, Menu} from 'electron'
 import path from 'path'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
@@ -143,7 +143,7 @@ function registerContentSecurityPolicy() {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
-            is.dev ? devConnect : "connect-src 'self'",
+            devConnect,
         ].join('; ')
 
         callback({
@@ -191,6 +191,7 @@ function ensureAgentStreamProcess() {
 }
 
 app.whenReady().then(() => {
+    Menu.setApplicationMenu(null)
     registerContentSecurityPolicy()
     createWindow()
 

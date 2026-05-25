@@ -1,15 +1,15 @@
-import React, {useState} from "react";
-import "../../css/main/main.css";
-import Assistant from "../../components/Assistant";
-import History, {Message} from "../../components/History";
-import Chat from "../../components/Chat";
-import Found from "../../components/Found";
-import NewTask from "../../components/NewTask";
-import PipelineTask from "../../components/PipelineTask";
-import TokenMange from "../../components/TokenMange";
-import Setting from "../../components/Setting";
-import Connectors from "../../components/Connectors";
-
+import React, {useState} from 'react';
+import '../../css/main/main.css';
+import Assistant from '../../components/Assistant';
+import History, {Message} from '../../components/History';
+import Chat from '../../components/Chat';
+import Found from '../../components/Found';
+import NewTask from '../../components/NewTask';
+import PipelineTask from '../../components/PipelineTask';
+import TokenMange from '../../components/TokenMange';
+import Setting from '../../components/Setting';
+import Connectors from '../../components/Connectors';
+import UserProfileBar from '../../components/auth/UserProfileBar';
 
 const PageMap = {
     chat: Chat,
@@ -18,33 +18,32 @@ const PageMap = {
     tokenMange: TokenMange,
     skill: Found,
     connection: Connectors,
-    setting: Setting
-}
+    setting: Setting,
+};
 
 export default function MainPage() {
-    const [activeKey, setActiveKey] = useState<keyof typeof PageMap>("chat");
-    const ActiveComponent = PageMap[activeKey]
-    const SettingClickHandler = (item: any) => {
-        setActiveKey(item)
-    }
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '001',
-            content: '发送邮件'
-        }, {
-            id: "002",
-            content: '爬取100张川菜的图片'
-        }
-
+    const [activeKey, setActiveKey] = useState<keyof typeof PageMap>('chat');
+    const ActiveComponent = PageMap[activeKey];
+    const [messages] = useState<Message[]>([
+        {id: '001', content: '发送邮件', pinned: true},
+        {id: '002', content: '爬取100张川菜的图片'},
+        {id: '003', content: '类人记忆压缩机制EMC解析'},
+        {id: '004', content: 'OpenManus 本地部署与配置'},
+        {id: '005', content: "JavaScript 'await' 在非 async 函数中的用法"},
+        {id: '006', content: 'Python KeyError 排查思路'},
+        {id: '007', content: 'asdict() 错误解析与解决方法'},
     ]);
+
     return (
         <div className="layout">
-            {/* 左侧 Sidebar */}
-            <div className="sidebar">
-                <Assistant activeItem={activeKey} onClickItem={SettingClickHandler}/>
+            <aside className="sidebar">
+                <Assistant activeItem={activeKey} onClickItem={setActiveKey}/>
+                <div className="sidebar-divider" role="separator"/>
                 <History messages={messages}/>
-            </div>
-            {/* 主要的 main */}
+                <div className="sidebar-footer">
+                    <UserProfileBar onUpgrade={() => setActiveKey('tokenMange')}/>
+                </div>
+            </aside>
             <div className="main-panel">
                 <ActiveComponent/>
             </div>

@@ -1,6 +1,7 @@
 """微信公众号服务端 API 客户端（支持自定义 api_base 以便代理转发）。"""
 
 import html
+import json
 import re
 import time
 from pathlib import Path
@@ -12,9 +13,59 @@ import requests
 
 DEFAULT_API_BASE = "https://api.weixin.qq.com"
 
+# 微信公众号 draft/add 字段长度（官方文档，按字符计）
+MAX_TITLE_CHARS = 32
+MAX_AUTHOR_CHARS = 16
+MAX_DIGEST_CHARS = 128
+
 
 class WeChatClientError(Exception):
     pass
+
+
+def _truncate_chars(text: str, max_chars: int) -> str:
+    """按字符截断（微信 draft/add 字段限制以「字」计）。"""
+    if max_chars <= 0:
+        return ""
+    return (text or "")[:max_chars]
+
+
+_UNICODE_ESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
+
+
+def decode_literal_unicode_escapes(text: str) -> str:
+    """将 LLM 偶发传入的字面量 \\uXXXX 转为真实 Unicode 字符。"""
+    raw = text or ""
+    if "\\u" not in raw:
+        return raw
+
+    def _repl(match: re.Match[str]) -> str:
+        return chr(int(match.group(1), 16))
+
+    return _UNICODE_ESCAPE_RE.sub(_repl, raw)
+
+
+def sanitize_wechat_text(text: str) -> str:
+    """提交前规范化文本：解码字面量转义并去除首尾空白。"""
+    return decode_literal_unicode_escapes((text or "").strip())
+
+
+def normalize_wechat_html(content: str, *, content_is_html: bool = False) -> str:
+    """将正文规范为微信公众号草稿可接受的 HTML。"""
+    raw = (content or "").strip()
+    if not raw:
+        return "<p></p>"
+    if content_is_html or re.search(r"<[a-z][\s\S]*>", raw, re.I):
+        # 去掉外层 section/div/article，避免微信渲染后体积膨胀
+        inner = re.sub(
+            r"^\s*<(?:section|div|article)[^>]*>([\s\S]*)</(?:section|div|article)>\s*$",
+            r"\1",
+            raw,
+            count=1,
+            flags=re.I,
+        ).strip()
+        return inner or raw
+    return markdown_to_wechat_html(raw)
 
 
 def markdown_to_wechat_html(text: str) -> str:
@@ -74,6 +125,15 @@ class WeChatClient:
         self._token_expires_at = float(token_expires_at or 0)
         self.session = requests.Session()
 
+    def _post_json(self, url: str, payload: Dict[str, Any], *, timeout: int = 60) -> requests.Response:
+        """POST JSON。微信 API 要求 UTF-8 原文，不能用 \\uXXXX 转义（ensure_ascii=False）。"""
+        return self.session.post(
+            url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            timeout=timeout,
+        )
+
     def _url(self, path: str, query: Optional[Dict[str, str]] = None) -> str:
         url = urljoin(self.api_base + "/", path.lstrip("/"))
         if query:
@@ -92,6 +152,11 @@ class WeChatClient:
             hint = ""
             if int(errcode) == 40164:
                 hint = "（请将出口 IP 加入微信公众平台 API IP 白名单，或使用代理 api_base）"
+            elif int(errcode) == 45004:
+                hint = (
+                    "（摘要 digest 不得超过 128 字；未填写时由微信自动抓取正文前 54 字。"
+                    "请勿在工具层自动生成过长摘要。）"
+                )
             raise WeChatClientError(f"微信 API 错误 {errcode}: {errmsg}{hint}")
         return data
 
@@ -148,12 +213,22 @@ class WeChatClient:
         if not path.is_file():
             raise WeChatClientError(f"封面图片不存在: {image_path}")
 
+        suffix = path.suffix.lower()
+        mime_map = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        mime = mime_map.get(suffix, "image/jpeg")
+
         token = self.get_access_token()
         url = self._url("/cgi-bin/material/add_material", {"access_token": token, "type": "image"})
         with open(path, "rb") as f:
             r = self.session.post(
                 url,
-                files={"media": (path.name, f, "image/jpeg")},
+                files={"media": (path.name, f, mime)},
                 timeout=60,
             )
         if r.status_code >= 400:
@@ -174,28 +249,30 @@ class WeChatClient:
         digest: str = "",
         content_is_html: bool = False,
     ) -> str:
-        body_html = content if content_is_html else markdown_to_wechat_html(content)
-        digest_text = (digest or "").strip() or re.sub(r"<[^>]+>", "", body_html)[:120]
+        body_html = normalize_wechat_html(
+            sanitize_wechat_text(content), content_is_html=content_is_html
+        )
+        digest_text = _truncate_chars(sanitize_wechat_text(digest), MAX_DIGEST_CHARS)
 
         token = self.get_access_token()
-        payload = {
-            "articles": [
-                {
-                    "title": (title or "").strip()[:64],
-                    "author": (author or "").strip()[:16],
-                    "digest": digest_text[:120],
-                    "content": body_html,
-                    "content_source_url": "",
-                    "thumb_media_id": thumb_media_id,
-                    "need_open_comment": 0,
-                    "only_fans_can_comment": 0,
-                }
-            ]
+        article: Dict[str, Any] = {
+            "article_type": "news",
+            "title": _truncate_chars(sanitize_wechat_text(title), MAX_TITLE_CHARS),
+            "author": _truncate_chars(sanitize_wechat_text(author), MAX_AUTHOR_CHARS),
+            "content": body_html,
+            "content_source_url": "",
+            "thumb_media_id": thumb_media_id,
+            "need_open_comment": 0,
+            "only_fans_can_comment": 0,
         }
-        r = self.session.post(
+        # 未填写 digest 时不传该字段，由微信自动抓取正文前 54 字
+        if digest_text:
+            article["digest"] = digest_text
+
+        payload = {"articles": [article]}
+        r = self._post_json(
             self._url("/cgi-bin/draft/add", {"access_token": token}),
-            json=payload,
-            timeout=60,
+            payload,
         )
         if r.status_code >= 400:
             raise WeChatClientError(f"创建草稿失败 ({r.status_code}): {r.text[:800]}")
@@ -211,10 +288,9 @@ class WeChatClient:
             raise WeChatClientError("media_id 不能为空")
 
         token = self.get_access_token()
-        r = self.session.post(
+        r = self._post_json(
             self._url("/cgi-bin/freepublish/submit", {"access_token": token}),
-            json={"media_id": mid},
-            timeout=60,
+            {"media_id": mid},
         )
         if r.status_code >= 400:
             raise WeChatClientError(f"提交发布失败 ({r.status_code}): {r.text[:800]}")
