@@ -1,5 +1,7 @@
 server:
   port: 8080
+  tomcat:
+    max-http-post-size: 16MB
 
 spring:
   application:
@@ -10,7 +12,9 @@ spring:
     password: ${MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 3
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.yolk

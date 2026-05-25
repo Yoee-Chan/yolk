@@ -11,3 +11,4 @@ dist-electron
 agent.spec
 agent_tools.spec
 /agent-controller/build/
+local-llm-engine/logs/

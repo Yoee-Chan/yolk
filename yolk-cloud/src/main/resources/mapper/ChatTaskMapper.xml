@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.chat.mapper.ChatTaskMapper">
+
+    <resultMap id="ChatTaskResultMap" type="com.yolk.chat.entity.ChatTaskEntity">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="pinned" column="pinned"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO chat_tasks (id, user_id, title, session_id, pinned, created_at, updated_at)
+        VALUES (#{id}, #{userId}, #{title}, #{sessionId}, #{pinned}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="findByIdAndUserId" resultMap="ChatTaskResultMap">
+        SELECT id, user_id, title, session_id, pinned, created_at, updated_at
+        FROM chat_tasks
+        WHERE id = #{id} AND user_id = #{userId}
+    </select>
+
+    <select id="findByUserIdOrderByPinnedAndUpdated" resultMap="ChatTaskResultMap">
+        SELECT id, user_id, title, session_id, pinned, created_at, updated_at
+        FROM chat_tasks
+        WHERE user_id = #{userId}
+        ORDER BY pinned DESC, updated_at DESC
+    </select>
+
+    <update id="updateTitle">
+        UPDATE chat_tasks
+        SET title = #{title}, updated_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <update id="updatePinned">
+        UPDATE chat_tasks
+        SET pinned = #{pinned}, updated_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <update id="touchUpdatedAt">
+        UPDATE chat_tasks
+        SET updated_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+</mapper>

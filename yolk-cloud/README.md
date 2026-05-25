@@ -25,7 +25,18 @@ cd yolk-cloud
 mysql -u root -p < sql/import_yolk.sql
 ```
 
-也可仅建库，由 Flyway 迁移（`src/main/resources/db/migration`，需在 `application.yml` 将 `spring.flyway.enabled` 设为 `true`）。
+也可仅建库，由 Flyway 迁移（`src/main/resources/db/migration`，默认已开启）。
+
+**若登录后聊天报 500、无法创建任务**：多半是旧库缺少 `chat_tasks` 表。任选其一：
+
+```powershell
+# 方式 A：重启 yolk-cloud（Flyway 会自动补 V4 迁移）
+cd yolk-cloud
+mvn spring-boot:run
+
+# 方式 B：手动执行补丁 SQL
+mysql -u root -p yolk < sql/patch_chat_tasks.sql
+```
 
 MyBatis SQL 定义在 `src/main/resources/mapper/*.xml`。
 
@@ -63,6 +74,17 @@ mvn spring-boot:run
 | GET | `/api/auth/me` | 当前用户 |
 | PUT | `/api/auth/profile` | `{ nickname?, avatarUrl? }` 更新头像、用户名 |
 | PUT | `/api/auth/password` | `{ oldPassword, newPassword }` |
+
+### 聊天任务
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/chat/tasks` | 任务列表 |
+| POST | `/api/chat/tasks` | 创建新任务 |
+| GET | `/api/chat/tasks/{id}` | 任务详情与消息 |
+| POST | `/api/chat/tasks/{id}/messages` | 追加消息 |
+| PUT | `/api/chat/tasks/{id}/title` | 更新标题 |
+| PUT | `/api/chat/tasks/{id}/pin` | 置顶/取消置顶 |
 
 ### 流量
 

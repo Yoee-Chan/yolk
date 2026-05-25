@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.log.mapper.ClientLogMapper">
+
+    <insert id="insertBatch">
+        INSERT INTO client_logs (
+            user_id, session_id, level, logger_name, function_name, line_no, message, logged_at
+        )
+        VALUES
+        <foreach collection="logs" item="log" separator=",">
+            (
+                #{log.userId},
+                #{log.sessionId},
+                #{log.level},
+                #{log.loggerName},
+                #{log.functionName},
+                #{log.lineNo},
+                #{log.message},
+                #{log.loggedAt}
+            )
+        </foreach>
+    </insert>
+</mapper>

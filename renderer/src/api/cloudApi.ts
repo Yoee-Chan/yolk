@@ -19,6 +19,31 @@ export interface AuthResult {
     user: UserProfile;
 }
 
+export interface ChatTaskSummary {
+    id: string;
+    title: string;
+    sessionId: string;
+    pinned: boolean;
+    updatedAt: string;
+}
+
+export interface ChatMessageRecord {
+    id: number;
+    role: 'user' | 'assistant';
+    content: string;
+    createdAt: string;
+}
+
+export interface ChatTaskDetail {
+    id: string;
+    title: string;
+    sessionId: string;
+    pinned: boolean;
+    createdAt: string;
+    updatedAt: string;
+    messages: ChatMessageRecord[];
+}
+
 const TOKEN_KEY = 'yolk_auth_token';
 
 export function getStoredToken(): string | null {
@@ -47,9 +72,17 @@ async function request<T>(
         headers.Authorization = `Bearer ${token}`;
     }
     const res = await fetch(`${BASE_URL}${path}`, {...options, headers});
-    const body = (await res.json()) as ApiResponse<T>;
-    if (body.code !== 0 || body.data === null) {
-        throw new Error(body.message || 'Request failed');
+    let body: ApiResponse<T> | null = null;
+    try {
+        body = (await res.json()) as ApiResponse<T>;
+    } catch {
+        /* 非 JSON 响应（如请求体过大被网关拒绝） */
+    }
+    if (!res.ok || !body || body.code !== 0 || body.data === null) {
+        throw new Error(
+            body?.message ||
+                (res.status === 413 ? '上传内容过大，请换一张较小的图片' : `请求失败 (${res.status})`)
+        );
     }
     return body.data;
 }
@@ -85,5 +118,30 @@ export const cloudApi = {
         request<null>('/api/auth/password', {
             method: 'PUT',
             body: JSON.stringify({oldPassword, newPassword}),
+        }),
+
+    listChatTasks: () => request<ChatTaskSummary[]>('/api/chat/tasks'),
+
+    createChatTask: () =>
+        request<ChatTaskSummary>('/api/chat/tasks', {method: 'POST'}),
+
+    getChatTask: (id: string) => request<ChatTaskDetail>(`/api/chat/tasks/${id}`),
+
+    appendChatMessage: (taskId: string, role: 'user' | 'assistant', content: string) =>
+        request<ChatMessageRecord>(`/api/chat/tasks/${taskId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({role, content}),
+        }),
+
+    updateChatTaskTitle: (taskId: string, title: string) =>
+        request<ChatTaskSummary>(`/api/chat/tasks/${taskId}/title`, {
+            method: 'PUT',
+            body: JSON.stringify({title}),
+        }),
+
+    updateChatTaskPin: (taskId: string, pinned: boolean) =>
+        request<ChatTaskSummary>(`/api/chat/tasks/${taskId}/pin`, {
+            method: 'PUT',
+            body: JSON.stringify({pinned}),
         }),
 };

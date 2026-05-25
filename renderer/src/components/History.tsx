@@ -1,43 +1,82 @@
 import React from 'react';
-import {PushpinOutlined} from '@ant-design/icons';
-
-export interface Message {
-    id: string;
-    content: string;
-    pinned?: boolean;
-}
+import {PlusOutlined, PushpinOutlined} from '@ant-design/icons';
+import type {ChatTaskSummary} from '../api/cloudApi';
 
 interface HistoryProps {
-    messages: Message[];
-    onSelect?: (id: string) => void;
+    tasks: ChatTaskSummary[];
+    activeTaskId: string | null;
+    onSelect: (id: string) => void;
+    onNewTask: () => void;
+    onTogglePin?: (id: string, pinned: boolean) => void;
+    disabled?: boolean;
 }
 
-export default function History({messages, onSelect}: HistoryProps) {
+export default function History({
+    tasks,
+    activeTaskId,
+    onSelect,
+    onNewTask,
+    onTogglePin,
+    disabled,
+}: HistoryProps) {
     return (
         <div className="sidebar-history">
+            <button
+                type="button"
+                className="sidebar-history-new"
+                onClick={onNewTask}
+                disabled={disabled}
+            >
+                <PlusOutlined aria-hidden/>
+                <span>创建新任务</span>
+            </button>
             <ul className="sidebar-history-list">
-                {messages.map((m) => (
-                    <li key={m.id}>
-                        <button
-                            type="button"
-                            className="sidebar-history-item"
-                            onClick={() => onSelect?.(m.id)}
-                            title={m.content}
-                        >
-                            <span className="sidebar-history-item__text">
-                                {m.content.length > 28
-                                    ? `${m.content.slice(0, 28)}…`
-                                    : m.content}
-                            </span>
-                            {m.pinned ? (
-                                <PushpinOutlined
-                                    className="sidebar-history-item__pin"
-                                    aria-label="已置顶"
-                                />
-                            ) : null}
-                        </button>
-                    </li>
-                ))}
+                {tasks.length === 0 ? (
+                    <li className="sidebar-history-empty">暂无历史任务</li>
+                ) : (
+                    tasks.map((task) => {
+                        const isActive = task.id === activeTaskId;
+                        return (
+                            <li key={task.id}>
+                                <button
+                                    type="button"
+                                    className={
+                                        isActive
+                                            ? 'sidebar-history-item sidebar-history-item--active'
+                                            : 'sidebar-history-item'
+                                    }
+                                    onClick={() => onSelect(task.id)}
+                                    title={task.title}
+                                >
+                                    <span className="sidebar-history-item__text">
+                                        {task.title.length > 28
+                                            ? `${task.title.slice(0, 28)}…`
+                                            : task.title}
+                                    </span>
+                                    {task.pinned ? (
+                                        <PushpinOutlined
+                                            className="sidebar-history-item__pin"
+                                            aria-label="已置顶"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onTogglePin?.(task.id, false);
+                                            }}
+                                        />
+                                    ) : onTogglePin ? (
+                                        <PushpinOutlined
+                                            className="sidebar-history-item__pin sidebar-history-item__pin--muted"
+                                            aria-label="置顶"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onTogglePin(task.id, true);
+                                            }}
+                                        />
+                                    ) : null}
+                                </button>
+                            </li>
+                        );
+                    })
+                )}
             </ul>
         </div>
     );

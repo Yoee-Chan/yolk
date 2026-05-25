@@ -7,7 +7,7 @@ import queue
 import threading
 from typing import Optional, Tuple
 import warnings
-from requests import RequestsDependencyWarning
+from requests import RequestsDependencyWarning, put as http_put
 import io
 
 # 强制 stdin/stdout 使用 UTF-8
@@ -98,16 +98,75 @@ def _stdin_router() -> None:
     _RUN_QUEUE.put(None)
 
 
-def read_run_request() -> Optional[Tuple[str, list]]:
+def _apply_run_env(payload: dict) -> None:
+    """将前端登录态注入子进程环境，供 local-llm-engine 云端日志上传使用。"""
+    token = payload.get("authToken")
+    if isinstance(token, str) and token.strip():
+        os.environ["YOLK_AUTH_TOKEN"] = token.strip()
+    else:
+        os.environ.pop("YOLK_AUTH_TOKEN", None)
+
+    api_url = payload.get("apiUrl")
+    if isinstance(api_url, str) and api_url.strip():
+        os.environ["YOLK_API_URL"] = api_url.strip()
+
+    log_session_id = payload.get("logSessionId")
+    if isinstance(log_session_id, str) and log_session_id.strip():
+        os.environ["YOLK_LOG_SESSION_ID"] = log_session_id.strip()
+
+
+def read_run_request() -> Optional[Tuple[str, list, dict]]:
     """从路由队列取一条 run 事件。stdin 关闭时返回 None。"""
     payload = _RUN_QUEUE.get()
     if payload is None:
         return None
+    _apply_run_env(payload)
     user_task = (payload.get("msg") or "").strip()
     history = payload.get("history") or []
     if not isinstance(history, list):
         history = []
-    return user_task, history
+    return user_task, history, payload
+
+
+async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
+    """首条消息时用模型提取任务关键词并写入 yolk-cloud。"""
+    api_url = os.environ.get("YOLK_API_URL", "http://localhost:8080").rstrip("/")
+    token = (os.environ.get("YOLK_AUTH_TOKEN") or "").strip()
+    if not task_id or not token:
+        return
+    try:
+        llm = LLM()
+        title = await llm.ask(
+            [
+                Message.user_message(
+                    "请用不超过20个字的简体中文概括以下用户任务，只输出标题，不要引号、标点或解释：\n"
+                    + user_task
+                )
+            ],
+            stream=False,
+            temperature=0.2,
+        )
+        title = (title or user_task).strip().splitlines()[0][:40]
+        if not title:
+            return
+        http_put(
+            f"{api_url}/api/chat/tasks/{task_id}/title",
+            json={"title": title},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=10,
+        )
+        print(
+            json.dumps(
+                {"type": "task_title", "taskId": task_id, "text": title},
+                ensure_ascii=False,
+            )
+        )
+        sys.stdout.flush()
+    except Exception:
+        logging.exception("更新任务标题失败")
 
 
 def _format_chat_history(history: list) -> str:
@@ -216,9 +275,16 @@ async def init_application(prompt: str):
         await agent.cleanup()
 
 
-async def main(user_task: str, history: Optional[list] = None):
+async def main(
+    user_task: str,
+    history: Optional[list] = None,
+    run_meta: Optional[dict] = None,
+):
     if history is None:
         history = []
+    run_meta = run_meta or {}
+    if run_meta.get("isFirstMessage") and run_meta.get("taskId"):
+        await _generate_and_save_task_title(str(run_meta["taskId"]), user_task)
     if not user_task:
         print(
             json.dumps(
@@ -357,7 +423,7 @@ if __name__ == "__main__":
             req = read_run_request()
             if req is None:
                 break
-            user_task, history = req
-            loop.run_until_complete(main(user_task, history))
+            user_task, history, run_meta = req
+            loop.run_until_complete(main(user_task, history, run_meta))
     finally:
         loop.close()
