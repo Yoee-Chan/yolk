@@ -1,3 +1,7 @@
+interface ImportMetaEnv {
+    readonly VITE_YOLK_API_URL?: string;
+}
+
 declare global {
     interface Window {
         api: {

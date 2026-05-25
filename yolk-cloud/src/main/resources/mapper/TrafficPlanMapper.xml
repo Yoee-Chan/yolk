@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.traffic.mapper.TrafficPlanMapper">
+
+    <resultMap id="TrafficPlanResultMap" type="com.yolk.traffic.entity.TrafficPlanEntity">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="totalTokens" column="total_tokens"/>
+        <result property="price" column="price"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <select id="findById" resultMap="TrafficPlanResultMap">
+        SELECT id, name, total_tokens, price, description
+        FROM traffic_plans
+        WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="TrafficPlanResultMap">
+        SELECT id, name, total_tokens, price, description
+        FROM traffic_plans
+        ORDER BY price
+    </select>
+</mapper>

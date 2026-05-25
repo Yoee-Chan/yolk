@@ -1,0 +1,9 @@
+{
+  "account_name": "哟一",
+  "app_id": "wx5d77f549daedfba9",
+  "app_secret_encrypted": "gAAAAABqExm0sQxobfW2vPZ7sl14fU9WYoS5KcNcR3fTfW--NMxh8Yub2d4X4fagqrFB8DH6dKKwrYR9ZuueSlGx81pEdg9zT5u8nZQZlXSwWYNdXySuqibletmfBF-kQGzbizoRONeL",
+  "api_base_url": "https://api.weixin.qq.com",
+  "access_token_encrypted": "gAAAAABqEyAIIxv5QnxupiGu5MUoCj832L1WKqrOWT1TdZem-GBmlvN7NMXkVfnszT4qYzHitAl85tOKWraz6SZpAa7LwGl5ROOWffjZvj0WbaexovQCT1HbFKZCKHTwUWQuuVgnrSIWSuxJRDLU3bk3OKpgblySFmqN0M4oyzCYhlkpthetb3NGqslZ1NylRG0HC_qKBVK0MawwMeNG-FZjsjXMaYU-9c3qJlAaIMtkCq76yP7HjvElz0e6EILEMoCl-shAS6yL",
+  "token_expires_at": 1779645480.4919424,
+  "default_author": "yoee"
+}

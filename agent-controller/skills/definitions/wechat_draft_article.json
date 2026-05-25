@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "connector": "wechat",
   "tool": "wechat_draft_article",
-  "description": "当用户要求撰写微信公众号文章并保存为草稿时使用。提取标题、正文、封面图本地路径、可选作者与摘要。在聊天中展示预览并经用户确认后调用 wechat_draft_article。需已在设置中配置 AppID 与 AppSecret。",
+  "description": "当用户要求撰写微信公众号文章并保存为草稿时使用。提取标题、正文、封面图本地路径、可选作者与摘要。在聊天中展示预览并经用户确认后调用 wechat_draft_article；若调用失败且用户已确认过，应自动修正并重试，勿反复索要确认。需已在设置中配置 AppID 与 AppSecret。",
   "triggers": [
     "公众号文章",
     "微信公众号",

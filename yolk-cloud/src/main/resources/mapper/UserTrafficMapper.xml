@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yolk.traffic.mapper.UserTrafficMapper">
+
+    <resultMap id="UserTrafficResultMap" type="com.yolk.traffic.entity.UserTrafficEntity">
+        <id property="userId" column="user_id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="totalTokens" column="total_tokens"/>
+        <result property="usedTokens" column="used_tokens"/>
+        <result property="renewDate" column="renew_date"/>
+        <result property="dailyLimit" column="daily_limit"/>
+    </resultMap>
+
+    <sql id="UserTrafficColumns">
+        user_id, plan_id, total_tokens, used_tokens, renew_date, daily_limit
+    </sql>
+
+    <select id="findByUserId" resultMap="UserTrafficResultMap">
+        SELECT <include refid="UserTrafficColumns"/>
+        FROM user_traffic
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO user_traffic (user_id, plan_id, total_tokens, used_tokens, renew_date, daily_limit)
+        VALUES (#{userId}, #{planId}, #{totalTokens}, #{usedTokens}, #{renewDate}, #{dailyLimit})
+    </insert>
+
+    <update id="update">
+        UPDATE user_traffic
+        SET plan_id = #{planId},
+            total_tokens = #{totalTokens},
+            used_tokens = #{usedTokens},
+            renew_date = #{renewDate},
+            daily_limit = #{dailyLimit}
+        WHERE user_id = #{userId}
+    </update>
+</mapper>

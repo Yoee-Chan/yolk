@@ -1,5 +1,6 @@
-import multiprocessing
+import asyncio
 import sys
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from io import StringIO
 from typing import Dict
 
@@ -36,6 +37,25 @@ class PythonExecute(BaseTool):
         finally:
             sys.stdout = original_stdout
 
+    def _execute_sync(self, code: str, timeout: int) -> Dict:
+        """在线程中执行代码（Windows/Electron 子进程下 multiprocessing 会卡死）。"""
+        result: Dict = {"observation": "", "success": False}
+        if isinstance(__builtins__, dict):
+            safe_globals = {"__builtins__": __builtins__}
+        else:
+            safe_globals = {"__builtins__": __builtins__.__dict__.copy()}
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self._run_code, code, result, safe_globals)
+            try:
+                future.result(timeout=timeout)
+            except FuturesTimeout:
+                return {
+                    "observation": f"Execution timeout after {timeout} seconds",
+                    "success": False,
+                }
+        return dict(result)
+
     async def execute(
         self,
         code: str,
@@ -51,25 +71,4 @@ class PythonExecute(BaseTool):
         Returns:
             Dict: Contains 'output' with execution output or error message and 'success' status.
         """
-
-        with multiprocessing.Manager() as manager:
-            result = manager.dict({"observation": "", "success": False})
-            if isinstance(__builtins__, dict):
-                safe_globals = {"__builtins__": __builtins__}
-            else:
-                safe_globals = {"__builtins__": __builtins__.__dict__.copy()}
-            proc = multiprocessing.Process(
-                target=self._run_code, args=(code, result, safe_globals)
-            )
-            proc.start()
-            proc.join(timeout)
-
-            # timeout process
-            if proc.is_alive():
-                proc.terminate()
-                proc.join(1)
-                return {
-                    "observation": f"Execution timeout after {timeout} seconds",
-                    "success": False,
-                }
-            return dict(result)
+        return await asyncio.to_thread(self._execute_sync, code, timeout)
