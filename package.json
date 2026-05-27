@@ -2,12 +2,13 @@
   "name": "yolk",
   "version": "1.0.0",
   "main": "dist-electron/main/index.js",
-  "description": "FreeWorking Windows Desktop App",
+  "description": "Yolk助手 — 本地化 AI 智能工作台（Windows 桌面端）",
   "author": "chan",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "prepare:icon": "powershell -ExecutionPolicy Bypass -File scripts/prepare-app-icon.ps1",
     "build:win": "electron-builder --win",
     "build:installer": "npm run build && npm run build:win",
     "preview": "electron-vite preview"
@@ -33,16 +34,22 @@
     "vite": "^5.0.0"
   },
   "build": {
-    "appId": "com.freeworking.app",
-    "productName": "FreeWorking",
+    "appId": "com.yolk.assistant",
+    "productName": "Yolk助手",
+    "icon": "renderer/public/yolk-logo.ico",
     "directories": {
       "output": "dist"
     },
+    "artifactName": "Yolk助手-Setup-${version}.${ext}",
     "files": [
       "dist-electron/**/*",
       "dist/**/*"
     ],
     "extraResources": [
+      {
+        "from": "renderer/public/yolk-logo.ico",
+        "to": "yolk-logo.ico"
+      },
       {
         "from": "agent-controller/dist/agent_stream.exe",
         "to": "agent_stream.exe"
@@ -54,13 +61,17 @@
     ],
     "win": {
       "target": "nsis",
+      "icon": "renderer/public/yolk-logo.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "Yolk助手",
+      "installerIcon": "renderer/public/yolk-logo.ico",
+      "uninstallerIcon": "renderer/public/yolk-logo.ico"
     }
   }
 }

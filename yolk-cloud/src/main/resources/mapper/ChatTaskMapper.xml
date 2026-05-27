@@ -11,41 +11,48 @@
         <result property="pinned" column="pinned"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="deleted" column="deleted"/>
     </resultMap>
 
     <insert id="insert">
-        INSERT INTO chat_tasks (id, user_id, title, session_id, pinned, created_at, updated_at)
-        VALUES (#{id}, #{userId}, #{title}, #{sessionId}, #{pinned}, #{createdAt}, #{updatedAt})
+        INSERT INTO chat_tasks (id, user_id, title, session_id, pinned, created_at, updated_at, deleted)
+        VALUES (#{id}, #{userId}, #{title}, #{sessionId}, #{pinned}, #{createdAt}, #{updatedAt}, 0)
     </insert>
 
     <select id="findByIdAndUserId" resultMap="ChatTaskResultMap">
-        SELECT id, user_id, title, session_id, pinned, created_at, updated_at
+        SELECT id, user_id, title, session_id, pinned, created_at, updated_at, deleted
         FROM chat_tasks
-        WHERE id = #{id} AND user_id = #{userId}
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
     </select>
 
     <select id="findByUserIdOrderByPinnedAndUpdated" resultMap="ChatTaskResultMap">
-        SELECT id, user_id, title, session_id, pinned, created_at, updated_at
+        SELECT id, user_id, title, session_id, pinned, created_at, updated_at, deleted
         FROM chat_tasks
-        WHERE user_id = #{userId}
+        WHERE user_id = #{userId} AND deleted = 0
         ORDER BY pinned DESC, updated_at DESC
     </select>
 
     <update id="updateTitle">
         UPDATE chat_tasks
         SET title = #{title}, updated_at = NOW()
-        WHERE id = #{id} AND user_id = #{userId}
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
     </update>
 
     <update id="updatePinned">
         UPDATE chat_tasks
         SET pinned = #{pinned}, updated_at = NOW()
-        WHERE id = #{id} AND user_id = #{userId}
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
     </update>
 
     <update id="touchUpdatedAt">
         UPDATE chat_tasks
         SET updated_at = NOW()
-        WHERE id = #{id} AND user_id = #{userId}
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
+    </update>
+
+    <update id="softDelete">
+        UPDATE chat_tasks
+        SET deleted = 1, updated_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
     </update>
 </mapper>

@@ -5,3 +5,7 @@ target/
 .project
 .settings/
 *.log
+
+# 安装包体积大，不提交 Git；部署时上传到 static/downloads/
+src/main/resources/static/downloads/*.exe
+src/main/resources/static/downloads/*.msi

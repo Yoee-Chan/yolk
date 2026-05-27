@@ -107,6 +107,15 @@ public class ChatService {
         return toSummary(task);
     }
 
+    @Transactional
+    public void softDeleteTask(Long userId, String taskId) {
+        requireTask(userId, taskId);
+        var updated = chatTaskMapper.softDelete(taskId, userId);
+        if (updated == 0) {
+            throw new BusinessException(404, "任务不存在");
+        }
+    }
+
     public boolean isFirstMessage(String taskId) {
         return chatMessageMapper.countByTaskId(taskId) == 0;
     }

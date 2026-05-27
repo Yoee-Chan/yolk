@@ -9,8 +9,10 @@ CREATE TABLE IF NOT EXISTS chat_tasks (
     pinned      TINYINT(1)   NOT NULL DEFAULT 0,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted     TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '0=正常 1=已删除',
     CONSTRAINT fk_chat_task_user FOREIGN KEY (user_id) REFERENCES users(id),
     INDEX idx_chat_task_user_updated (user_id, updated_at DESC),
+    INDEX idx_chat_task_user_active (user_id, deleted, updated_at DESC),
     INDEX idx_chat_task_session (user_id, session_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

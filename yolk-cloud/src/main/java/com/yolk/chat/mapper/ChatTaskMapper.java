@@ -22,4 +22,6 @@ public interface ChatTaskMapper {
     int updatePinned(@Param("id") String id, @Param("userId") Long userId, @Param("pinned") boolean pinned);
 
     int touchUpdatedAt(@Param("id") String id, @Param("userId") Long userId);
+
+    int softDelete(@Param("id") String id, @Param("userId") Long userId);
 }

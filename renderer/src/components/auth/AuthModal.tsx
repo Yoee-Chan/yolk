@@ -26,7 +26,7 @@ function AuthModalTitle() {
 function AuthModalTitleText() {
     return (
         <div>
-            <div className="auth-modal__title">欢迎使用 Yolk</div>
+            <div className="auth-modal__title">欢迎使用 Yolk助手</div>
             <div className="auth-modal__subtitle">登录或注册以同步你的数据</div>
         </div>
     );

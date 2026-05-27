@@ -71,7 +71,13 @@ class Manus(ToolCallAgent):
     @classmethod
     async def create(cls, **kwargs) -> "Manus":
         """Factory method to create and properly initialize a Manus instance."""
+        from app.risk_policy import build_system_prompt_addon, load_risk_config
+
+        load_risk_config(force_reload=True)
         instance = cls(**kwargs)
+        addon = build_system_prompt_addon()
+        if addon:
+            instance.system_prompt = f"{instance.system_prompt}\n\n{addon}"
         await instance.initialize_mcp_servers()
         instance._initialized = True
         return instance

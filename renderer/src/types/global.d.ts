@@ -2,6 +2,11 @@ interface ImportMetaEnv {
     readonly VITE_YOLK_API_URL?: string;
 }
 
+declare module '*.png' {
+    const src: string;
+    export default src;
+}
+
 declare global {
     interface Window {
         api: {

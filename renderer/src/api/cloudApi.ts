@@ -144,4 +144,7 @@ export const cloudApi = {
             method: 'PUT',
             body: JSON.stringify({pinned}),
         }),
+
+    deleteChatTask: (taskId: string) =>
+        request<null>(`/api/chat/tasks/${taskId}`, {method: 'DELETE'}),
 };

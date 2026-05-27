@@ -43,11 +43,21 @@
 }
 
 .sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin: 0;
     font-size: 17px;
     font-weight: 700;
     color: #1e293b;
     letter-spacing: -0.02em;
+}
+
+.sidebar-title__logo {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .sidebar-collapse-btn {
@@ -180,6 +190,45 @@
     list-style: none;
     margin: 0;
     padding: 0;
+}
+
+.sidebar-history-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 2px;
+}
+
+.sidebar-history-row .sidebar-history-item {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-history-item__delete {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-history-row:hover .sidebar-history-item__delete,
+.sidebar-history-item__delete:focus-visible {
+    opacity: 1;
+}
+
+.sidebar-history-item__delete:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
 }
 
 .sidebar-history-item {

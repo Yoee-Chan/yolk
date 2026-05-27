@@ -155,10 +155,19 @@ function registerContentSecurityPolicy() {
     })
 }
 
+function resolveAppIcon(): string {
+    if (app.isPackaged) {
+        return path.join(process.resourcesPath, 'yolk-logo.ico')
+    }
+    return path.join(process.cwd(), 'renderer/public/yolk-logo.ico')
+}
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
+        title: 'Yolk助手',
+        icon: resolveAppIcon(),
         webPreferences: {
             preload: path.join(__dirname, '../preload/index.js')
         }
@@ -210,15 +219,36 @@ app.whenReady().then(() => {
             py = null
         }
 
+        const runArgs = args as {
+            msg?: string
+            history?: unknown[]
+            authToken?: string
+            apiUrl?: string
+            logSessionId?: string
+            taskId?: string
+            isFirstMessage?: boolean
+        }
         const msg =
-            typeof args?.msg === 'string' ? args.msg : typeof args === 'string' ? args : ''
-        const history = Array.isArray((args as {history?: unknown})?.history)
-            ? (args as {history: unknown[]}).history
-            : []
+            typeof runArgs?.msg === 'string'
+                ? runArgs.msg
+                : typeof args === 'string'
+                  ? args
+                  : ''
+        const history = Array.isArray(runArgs?.history) ? runArgs.history : []
 
         ensureAgentStreamProcess()
 
-        const payload = JSON.stringify({event: 'run', msg, history}) + '\n'
+        const payload =
+            JSON.stringify({
+                event: 'run',
+                msg,
+                history,
+                authToken: runArgs?.authToken,
+                apiUrl: runArgs?.apiUrl,
+                logSessionId: runArgs?.logSessionId,
+                taskId: runArgs?.taskId,
+                isFirstMessage: Boolean(runArgs?.isFirstMessage),
+            }) + '\n'
         const payloadBuf = Buffer.from(payload, 'utf8')
         try {
             py!.stdin.write(payloadBuf)

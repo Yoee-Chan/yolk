@@ -9,15 +9,15 @@ const MIN_LIMIT = 5_000;
 const MAX_LIMIT = 500_000;
 const STEP = 5_000;
 
-const TITLE = '\u6bcf\u65e5\u9650\u989d';
+const TITLE = '每日限额';
 const HINT =
-    '\u62d6\u52a8\u6ed1\u5757\u6216\u8f93\u5165\u6570\u503c\uff0c\u8bbe\u7f6e Agent \u6bcf\u65e5\u8bcd\u5143\u6d88\u8017\u4e0a\u9650\uff0c\u8d85\u51fa\u540e\u5f53\u65e5\u5c06\u505c\u6b62\u8c03\u7528\u3002';
-const SAVE_BTN = '\u4fdd\u5b58\u8bbe\u7f6e';
-const TODAY_USAGE = '\u4eca\u65e5\u7528\u91cf';
-const TOKEN_UNIT = '\u8bcd\u5143';
-const SAVE_MSG_PREFIX = '\u6bcf\u65e5\u9650\u989d\u5df2\u4fdd\u5b58\u4e3a ';
-const REMAINING_PREFIX = '\u4eca\u65e5\u5269\u4f59 ';
-const NEAR_LIMIT = ' \u00b7 \u5373\u5c06\u8fbe\u5230\u4e0a\u9650';
+    '拖动滑块或输入数值，设置 Agent 每日词元消耗上限，超出后当日将停止调用。';
+const SAVE_BTN = '保存设置';
+const TODAY_USAGE = '今日用量';
+const TOKEN_UNIT = '词元';
+const SAVE_MSG_PREFIX = '每日限额已保存为 ';
+const REMAINING_PREFIX = '今日剩余 ';
+const NEAR_LIMIT = ' · 即将达到上限';
 
 interface DailyTokenLimitProps {
     todayUsed?: number;

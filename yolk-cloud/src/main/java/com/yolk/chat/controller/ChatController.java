@@ -54,4 +54,10 @@ public class ChatController {
             @Valid @RequestBody ChatDtos.UpdatePinRequest request) {
         return ApiResponse.ok(chatService.updatePinned(AuthUtils.currentUserId(), id, request));
     }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteTask(@PathVariable String id) {
+        chatService.softDeleteTask(AuthUtils.currentUserId(), id);
+        return ApiResponse.ok();
+    }
 }

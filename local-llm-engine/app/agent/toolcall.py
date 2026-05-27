@@ -180,6 +180,21 @@ class ToolCallAgent(ReActAgent):
             # Parse arguments
             args = json.loads(command.function.arguments or "{}")
 
+            from app.risk_policy import (
+                confirm_tool_execution,
+                load_risk_config,
+                requires_tool_confirmation,
+            )
+
+            risk_cfg = load_risk_config()
+            if requires_tool_confirmation(name, args, risk_cfg):
+                approved = await confirm_tool_execution(name, args)
+                if not approved:
+                    return (
+                        f"Error: User declined or did not confirm tool `{name}`. "
+                        "Do not retry the same action without explaining or asking in chat."
+                    )
+
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
             result = await self.available_tools.execute(name=name, tool_input=args)

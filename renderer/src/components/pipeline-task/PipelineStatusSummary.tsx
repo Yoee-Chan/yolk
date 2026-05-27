@@ -16,11 +16,11 @@ const CARDS: {
     className: string;
     countKey?: ExecutionStatus;
 }[] = [
-    {key: 'all', label: '\u5168\u90e8\u8bb0\u5f55', className: ''},
-    {key: 'running', label: '\u8fdb\u884c\u4e2d', className: 'summary-card--running', countKey: 'running'},
-    {key: 'completed', label: '\u5df2\u5b8c\u6210', className: 'summary-card--completed', countKey: 'completed'},
-    {key: 'error', label: '\u53d1\u751f\u9519\u8bef', className: 'summary-card--error', countKey: 'error'},
-    {key: 'abandoned', label: '\u5df2\u5f03\u7528', className: 'summary-card--abandoned', countKey: 'abandoned'},
+    {key: 'all', label: '全部记录', className: ''},
+    {key: 'running', label: '进行中', className: 'summary-card--running', countKey: 'running'},
+    {key: 'completed', label: '已完成', className: 'summary-card--completed', countKey: 'completed'},
+    {key: 'error', label: '发生错误', className: 'summary-card--error', countKey: 'error'},
+    {key: 'abandoned', label: '已弃用', className: 'summary-card--abandoned', countKey: 'abandoned'},
 ];
 
 export default function PipelineStatusSummary({

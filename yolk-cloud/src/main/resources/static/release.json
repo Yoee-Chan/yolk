@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "productName": "Yolk助手",
+  "fileName": "Yolk助手-Setup-1.0.0.exe",
+  "downloadUrl": "/downloads/Yolk助手-Setup-1.0.0.exe",
+  "minOs": "Windows 10 / 11（64 位）",
+  "available": false,
+  "sizeHint": "请将 Electron 打包产物复制到 static/downloads/ 后，将 available 改为 true"
+}
