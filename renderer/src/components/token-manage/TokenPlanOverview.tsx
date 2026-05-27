@@ -10,13 +10,13 @@ import {
 
 const Box = ('di' + 'v') as 'div';
 
-const LABEL_REMAINING = '\u5269\u4f59';
-const LABEL_TOTAL = '\u5957\u9910\u603b\u91cf';
-const LABEL_USED = '\u5df2\u4f7f\u7528';
-const LABEL_REMAINING_QUOTA = '\u5269\u4f59\u989d\u5ea6';
-const RENEW_PREFIX = '\u6709\u6548\u671f\u81f3 ';
-const PER_MONTH = '\u6708';
-const CURRENCY = '\u00a5';
+const LABEL_REMAINING = '剩余';
+const LABEL_TOTAL = '套餐总量';
+const LABEL_USED = '已使用';
+const LABEL_REMAINING_QUOTA = '剩余额度';
+const RENEW_PREFIX = '有效期至 ';
+const PER_MONTH = '月';
+const CURRENCY = '¥';
 
 export default function TokenPlanOverview() {
     const {name, totalTokens, usedTokens, renewDate, badge} = CURRENT_PLAN;
@@ -72,7 +72,7 @@ export default function TokenPlanOverview() {
                         </Box>
                         <Box style={{color: 'rgba(255,255,255,0.75)'}}>
                             {CURRENCY}
-                            {p.price} {'\u00b7'} {p.desc}
+                            {p.price} {'·'} {p.desc}
                         </Box>
                     </Box>
                 ))}

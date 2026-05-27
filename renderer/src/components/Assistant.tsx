@@ -8,6 +8,9 @@ import {
     LinkOutlined,
     LayoutOutlined,
 } from '@ant-design/icons';
+import {SHOW_TOKEN_MANAGE} from '../config/featureFlags';
+
+const yolkLogo = '/yolk-logo.png';
 
 type SettingProps = {
     activeItem: string;
@@ -27,7 +30,17 @@ export default function Assistant({activeItem, onClickItem}: SettingProps) {
     return (
         <div className="sidebar-top">
             <div className="sidebar-header">
-                <h2 className="sidebar-title">Yolk</h2>
+                <h2 className="sidebar-title">
+                    <img
+                        src={yolkLogo}
+                        alt=""
+                        className="sidebar-title__logo"
+                        width={26}
+                        height={26}
+                        draggable={false}
+                    />
+                    <span>Yolk助手</span>
+                </h2>
                 <button
                     type="button"
                     className="sidebar-collapse-btn"
@@ -37,7 +50,12 @@ export default function Assistant({activeItem, onClickItem}: SettingProps) {
                 </button>
             </div>
             <nav className="sidebar-nav" aria-label="主导航">
-                {items.map((item) => {
+                {items
+                    .filter(
+                        (item) =>
+                            item.key !== 'tokenMange' || SHOW_TOKEN_MANAGE
+                    )
+                    .map((item) => {
                     const isActive = item.key === activeItem;
                     return (
                         <button

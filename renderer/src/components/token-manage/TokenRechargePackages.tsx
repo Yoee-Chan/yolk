@@ -6,13 +6,13 @@ import {RECHARGE_PACKAGES, formatTokens} from './mockData';
 const {Text} = Typography;
 const Box = ('di' + 'v') as 'div';
 
-const TITLE = '\u8d2d\u4e70\u52a0\u91cf\u5305';
-const EXTRA = '\u52a0\u91cf\u5305\u5373\u65f6\u5230\u8d26\uff0c\u4e0e\u5957\u9910\u53e0\u52a0';
-const WARN_SELECT = '\u8bf7\u5148\u9009\u62e9\u52a0\u91cf\u5305';
-const HOT_TAG = '\u70ed\u95e8';
-const TOKEN_UNIT = '\u8bcd\u5143';
-const RECHARGE_BTN = '\u7acb\u5373\u5145\u503c';
-const CURRENCY = '\u00a5';
+const TITLE = '购买加量包';
+const EXTRA = '加量包即时到账，与套餐叠加';
+const WARN_SELECT = '请先选择加量包';
+const HOT_TAG = '热门';
+const TOKEN_UNIT = '词元';
+const RECHARGE_BTN = '立即充值';
+const CURRENCY = '¥';
 
 type TokenRechargePackagesProps = {
     onProceedToCheckout: (pack: (typeof RECHARGE_PACKAGES)[number]) => void;

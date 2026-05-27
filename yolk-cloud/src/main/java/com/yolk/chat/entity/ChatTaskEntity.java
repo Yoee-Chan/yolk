@@ -16,4 +16,6 @@ public class ChatTaskEntity {
     private boolean pinned;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 0=正常 1=已删除 */
+    private boolean deleted;
 }

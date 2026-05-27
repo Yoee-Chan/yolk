@@ -7,8 +7,8 @@ import {formatTokens} from './mockData';
 const {Text, Title} = Typography;
 const Box = ('di' + 'v') as 'div';
 
-const CURRENCY = '\u00a5';
-const TOKEN_UNIT = '\u8bcd\u5143';
+const CURRENCY = '¥';
+const TOKEN_UNIT = '词元';
 
 export type TokenRechargeCheckoutProps = {
     pack: RechargePackage;

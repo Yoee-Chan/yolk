@@ -60,7 +60,7 @@ export default function PipelineExecutionDetail({execution, definition}: Props) 
                     style={{marginTop: 12}}
                     type="error"
                     showIcon
-                    title={'\u6267\u884c\u9519\u8bef'}
+                    title={'执行错误'}
                     description={execution.errorMessage}
                 />
             )}

@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
+import {message, Modal} from 'antd';
 import '../../css/main/main.css';
 import Assistant from '../../components/Assistant';
 import History from '../../components/History';
@@ -12,6 +13,7 @@ import Connectors from '../../components/Connectors';
 import UserProfileBar from '../../components/auth/UserProfileBar';
 import {cloudApi, type ChatTaskSummary} from '../../api/cloudApi';
 import {useAuth} from '../../context/AuthContext';
+import {SHOW_TOKEN_MANAGE} from '../../config/featureFlags';
 
 const PageMap = {
     chat: Chat,
@@ -44,6 +46,12 @@ export default function MainPage() {
         const list = await cloudApi.listChatTasks();
         setTasks(list);
     }, [user]);
+
+    useEffect(() => {
+        if (!SHOW_TOKEN_MANAGE && activeKey === 'tokenMange') {
+            setActiveKey('chat');
+        }
+    }, [activeKey]);
 
     useEffect(() => {
         if (!user) {
@@ -127,6 +135,37 @@ export default function MainPage() {
         });
     }, []);
 
+    const handleDeleteTask = useCallback(
+        (id: string) => {
+            Modal.confirm({
+                title: '删除此任务？',
+                content: '任务将从列表中移除，聊天记录在后台保留（软删除）。',
+                okText: '删除',
+                okType: 'danger',
+                cancelText: '取消',
+                onOk: async () => {
+                    try {
+                        await cloudApi.deleteChatTask(id);
+                        setTasks((prev) => prev.filter((t) => t.id !== id));
+                        if (activeTaskId === id) {
+                            setActiveTaskId(null);
+                            setSessionId(null);
+                            setRestoredMessages([]);
+                            setShowWelcome(true);
+                            setChatKey((k) => k + 1);
+                        }
+                        message.success('任务已删除');
+                    } catch (e) {
+                        message.error(
+                            e instanceof Error ? e.message : '删除失败'
+                        );
+                    }
+                },
+            });
+        },
+        [activeTaskId]
+    );
+
     const ActiveComponent = PageMap[activeKey];
 
     return (
@@ -140,10 +179,17 @@ export default function MainPage() {
                     onSelect={selectTask}
                     onNewTask={openNewTask}
                     onTogglePin={user ? handleTogglePin : undefined}
+                    onDelete={user ? handleDeleteTask : undefined}
                     disabled={!user || tasksLoading}
                 />
                 <div className="sidebar-footer">
-                    <UserProfileBar onUpgrade={() => setActiveKey('tokenMange')}/>
+                    <UserProfileBar
+                        onUpgrade={
+                            SHOW_TOKEN_MANAGE
+                                ? () => setActiveKey('tokenMange')
+                                : undefined
+                        }
+                    />
                 </div>
             </aside>
             <div className="main-panel">

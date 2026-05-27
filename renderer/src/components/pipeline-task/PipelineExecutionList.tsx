@@ -19,7 +19,7 @@ export default function PipelineExecutionList({
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     if (executions.length === 0) {
-        return <Empty description={'\u5f53\u524d\u7b5b\u9009\u4e0b\u6682\u65e0\u6267\u884c\u8bb0\u5f55'}/>;
+        return <Empty description={'当前筛选下暂无执行记录'}/>;
     }
 
     return (
@@ -42,20 +42,20 @@ export default function PipelineExecutionList({
                             >
                                 <h4 className="exec-item__title">{exec.pipelineName}</h4>
                                 <p className="exec-item__meta">
-                                    {'\u5f00\u59cb '}{formatDateTime(exec.startedAt)}
-                                    {exec.finishedAt && ` \u00b7 \u7ed3\u675f ${formatDateTime(exec.finishedAt)}`}
+                                    {'开始 '}{formatDateTime(exec.startedAt)}
+                                    {exec.finishedAt && ` · 结束 ${formatDateTime(exec.finishedAt)}`}
                                 </p>
                                 <p style={{marginTop: 8}}>
                                     <Tag color={executionStatusColor(exec.status)}>
-                                        {'\u7ed3\u679c \u00b7 '}{executionStatusLabel(exec.status)}
+                                        {'结果 · '}{executionStatusLabel(exec.status)}
                                     </Tag>
                                     {exec.status === 'running' && def && (
                                         <Tag color="blue">
-                                            {'\u8fc7\u7a0b \u00b7 \u7b2c '}
+                                            {'过程 · 第 '}
                                             {exec.currentStageIndex + 1}
                                             {' / '}
                                             {def.stages.length}
-                                            {' \u9636\u6bb5'}
+                                            {' 阶段'}
                                         </Tag>
                                     )}
                                 </p>
@@ -63,16 +63,16 @@ export default function PipelineExecutionList({
                             <aside className="exec-item__actions">
                                 {exec.status === 'running' && (
                                     <Popconfirm
-                                        title={'\u786e\u5b9a\u53d6\u6d88\u8be5\u6d41\u6c34\u7ebf\uff1f'}
+                                        title={'确定取消该流水线？'}
                                         description={
-                                            '\u672a\u5b8c\u6210\u524d\u53ef\u968f\u65f6\u53d6\u6d88\uff0c\u72b6\u6001\u5c06\u8bb0\u4e3a\u300c\u5df2\u5f03\u7528\u300d\u3002'
+                                            '未完成前可随时取消，状态将记为「已弃用」。'
                                         }
                                         onConfirm={() => onCancel(exec.id)}
-                                        okText={'\u53d6\u6d88\u6267\u884c'}
-                                        cancelText={'\u8fd4\u56de'}
+                                        okText={'取消执行'}
+                                        cancelText={'返回'}
                                     >
                                         <Button danger size="small" icon={<StopOutlined/>}>
-                                            {'\u53d6\u6d88'}
+                                            {'取消'}
                                         </Button>
                                     </Popconfirm>
                                 )}

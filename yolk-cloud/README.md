@@ -60,6 +60,56 @@ mvn spring-boot:run
 
 服务地址：`http://localhost:8080`
 
+## 官网（宣传页 + 安装包下载）
+
+静态官网已内置在 `src/main/resources/static/`，与 API **同域部署**：
+
+| 路径 | 说明 |
+|------|------|
+| `/` | 产品介绍宣传页 |
+| `/release.json` | 版本号、下载文件名（发版时修改） |
+| `/downloads/*.exe` | Windows 安装包（需自行上传，不打进 Git） |
+
+### 发布安装包
+
+1. 在项目根目录打包桌面端：
+
+```powershell
+cd agent-controller
+.\build_exe.bat
+cd ..
+npm run build:installer
+```
+
+2. 将 `dist/` 下生成的安装包复制到：
+
+```text
+yolk-cloud/src/main/resources/static/downloads/Yolk助手-Setup-1.0.0.exe
+```
+
+或在**服务器**上放到 JAR 同级目录 `downloads/`（若用 Nginx 托管大文件，见下）。
+
+3. 更新 `static/release.json` 中的 `version`、`fileName`、`downloadUrl`。
+
+### 生产部署建议
+
+- **小团队 / 单机**：`java -jar yolk-cloud.jar` 即可，根路径访问官网，`/api/**` 为后端。
+- **安装包较大时**：不要把 exe 打进 JAR。用 Nginx：
+
+```nginx
+location /downloads/ {
+    alias /var/www/yolk/downloads/;
+}
+location /api/ {
+    proxy_pass http://127.0.0.1:8080;
+}
+location / {
+    proxy_pass http://127.0.0.1:8080;
+}
+```
+
+`SecurityConfig` 已对非 `/api/**` 路径放行，官网与静态资源无需登录。
+
 ## API 一览
 
 统一响应：`{ "code": 0, "message": "ok", "data": ... }`  

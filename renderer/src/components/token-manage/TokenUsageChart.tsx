@@ -11,13 +11,13 @@ const {Text} = Typography;
 const Box = ('di' + 'v') as keyof JSX.IntrinsicElements;
 
 const PERIOD_OPTIONS = [
-    {label: '\u6309\u5929', value: 'day'},
-    {label: '\u6309\u5468', value: 'week'},
-    {label: '\u6309\u6708', value: 'month'},
+    {label: '按天', value: 'day'},
+    {label: '按周', value: 'week'},
+    {label: '按月', value: 'month'},
 ];
 
-const TITLE = '\u8bcd\u5143\u4f7f\u7528\u91cf';
-const TOKEN_UNIT = '\u8bcd\u5143';
+const TITLE = '词元使用量';
+const TOKEN_UNIT = '词元';
 
 const CHART_W = 640;
 const CHART_H = 180;
@@ -79,10 +79,10 @@ export default function TokenUsageChart() {
 
     const periodHint =
         period === 'day'
-            ? '\u4eca\u65e5 24 \u5c0f\u65f6\u8d8b\u52bf'
+            ? '今日 24 小时趋势'
             : period === 'week'
-              ? '\u8fd1 7 \u65e5\u8d8b\u52bf'
-              : '\u8fd1 30 \u65e5\u8d8b\u52bf';
+              ? '近 7 日趋势'
+              : '近 30 日趋势';
 
     const gridYs = [0.25, 0.5, 0.75].map(
         (ratio) => PAD.top + innerH * (1 - ratio),
@@ -169,9 +169,9 @@ export default function TokenUsageChart() {
                 </svg>
             </Box>
             <Box className="usage-chart__summary">
-                <Statistic title={'\u5408\u8ba1\u6d88\u8017'} value={formatTokens(total)} suffix={TOKEN_UNIT}/>
-                <Statistic title={'\u65e5\u5747 / \u5747\u503c'} value={formatTokens(avg)} suffix={TOKEN_UNIT}/>
-                <Statistic title={'\u5cf0\u503c'} value={formatTokens(peak)} suffix={TOKEN_UNIT}/>
+                <Statistic title={'合计消耗'} value={formatTokens(total)} suffix={TOKEN_UNIT}/>
+                <Statistic title={'日均 / 均值'} value={formatTokens(avg)} suffix={TOKEN_UNIT}/>
+                <Statistic title={'峰值'} value={formatTokens(peak)} suffix={TOKEN_UNIT}/>
             </Box>
         </Card>
     );

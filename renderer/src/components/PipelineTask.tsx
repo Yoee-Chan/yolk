@@ -55,7 +55,7 @@ export default function PipelineTask() {
                     : e,
             ),
         );
-        message.success('\u5df2\u53d6\u6d88\u6267\u884c\uff0c\u72b6\u6001\u8bb0\u4e3a\u5df2\u5f03\u7528');
+        message.success('已取消执行，状态记为已弃用');
     };
 
     const handleToggleEnabled = (id: string, enabled: boolean) => {
@@ -78,17 +78,17 @@ export default function PipelineTask() {
         setExecutions((prev) => [exec, ...prev]);
         setActiveTab('executions');
         setStatusFilter('running');
-        message.info('\u5df2\u542f\u52a8\u6267\u884c\uff08\u6f14\u793a\u6570\u636e\uff0c\u540e\u7aef\u63a5\u5165\u540e\u5c06\u771f\u5b9e\u8dd1\u6d41\u7a0b\uff09');
+        message.info('已启动执行（演示数据，后端接入后将真实跑流程）');
     };
 
     const handleFormSubmit = (values: DefinitionFormValues) => {
         const next = buildDefinitionFromForm(values, editing ?? undefined);
         if (editing) {
             setDefinitions((prev) => prev.map((d) => (d.id === editing.id ? next : d)));
-            message.success('\u6d41\u6c34\u7ebf\u5df2\u66f4\u65b0');
+            message.success('流水线已更新');
         } else {
             setDefinitions((prev) => [...prev, next]);
-            message.success('\u6d41\u6c34\u7ebf\u5df2\u521b\u5efa');
+            message.success('流水线已创建');
         }
         setFormOpen(false);
         setEditing(null);
@@ -97,10 +97,10 @@ export default function PipelineTask() {
     return (
         <main className="pipeline-task">
             <header className="pipeline-task__header">
-                <h2>{'\u6d41\u6c34\u7ebf\u4efb\u52a1'}</h2>
+                <h2>{'流水线任务'}</h2>
                 <Paragraph type="secondary">
                     {
-                        '\u5b9a\u4e49\u591a\u4e2a\u6d41\u7a0b\u4efb\u52a1\uff0c\u67e5\u770b\u6267\u884c\u8bb0\u5f55\uff08\u8fdb\u884c\u4e2d\u3001\u5df2\u5b8c\u6210\u3001\u9519\u8bef\u3001\u5df2\u5f03\u7528\uff09\uff0c\u672a\u5b8c\u6210\u524d\u53ef\u53d6\u6d88'
+                        '定义多个流程任务，查看执行记录（进行中、已完成、错误、已弃用），未完成前可取消'
                     }
                 </Paragraph>
             </header>
@@ -121,7 +121,7 @@ export default function PipelineTask() {
                 items={[
                     {
                         key: 'executions',
-                        label: `\u6267\u884c\u8bb0\u5f55 (${executions.length})`,
+                        label: `执行记录 (${executions.length})`,
                         children: (
                             <PipelineExecutionList
                                 executions={filteredExecutions}
@@ -132,7 +132,7 @@ export default function PipelineTask() {
                     },
                     {
                         key: 'definitions',
-                        label: `\u6d41\u7a0b\u5b9a\u4e49 (${definitions.length})`,
+                        label: `流程定义 (${definitions.length})`,
                         children: (
                             <PipelineDefinitionList
                                 definitions={definitions}

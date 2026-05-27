@@ -30,6 +30,8 @@ else:
 
 LLM_ENGINE_DIR = os.path.join(BASE_DIR, "local-llm-engine")
 WORKSPACE_JSON = os.path.join(SCRIPT_DIR, "llm_config", "workspace.json")
+RISK_JSON = os.path.join(SCRIPT_DIR, "llm_config", "risk.json")
+os.environ.setdefault("YOLK_RISK_JSON", RISK_JSON)
 os.environ.setdefault(
     "YOLK_JIRA_CONNECTOR_JSON",
     os.path.join(SCRIPT_DIR, "llm_config", "jira_connector.json"),
@@ -139,7 +141,8 @@ async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
         title = await llm.ask(
             [
                 Message.user_message(
-                    "请用不超过20个字的简体中文概括以下用户任务，只输出标题，不要引号、标点或解释：\n"
+                    "请从以下用户任务中提取关键主题，用不超过20个字的简体中文关键词作为对话标题。"
+                    "只输出标题本身，不要引号、标点或解释：\n"
                     + user_task
                 )
             ],
@@ -195,13 +198,15 @@ def _format_chat_history(history: list) -> str:
 
 
 _PLANNER_SYSTEM = """你是任务规划师，只做「规划与说明」，不要执行任何工具、不要写代码、不要假装已完成操作。
-请根据用户的当前请求与会话摘要，用简体中文输出 Markdown，且必须包含以下小节（若无内容则写「无」）：
+请根据用户的当前请求与会话摘要，用简体中文输出 Markdown，且必须包含以下小节：
 ## 执行计划
-（分步骤、可检查；若需求不清，列出合理假设并标注「待确认」）
+（有具体可执行步骤时列出；若用户只是问候、闲聊、或仅咨询且无需工具，只写「无」）
 ## 所需权限与数据访问
-（例如：读/写工作区内哪些路径、是否需要网络、浏览器、终端、外部应用等）
+（需要读/写工作区路径、网络、浏览器、终端、外部应用时写明；否则只写「无」）
 ## 将使用的程序或应用
-（例如：Python、浏览器自动化、Outlook、MCP 工具名等；没有则写「无」）
+（将调用 Python、浏览器、Outlook、MCP 等时写明；否则只写「无」）
+## 是否需要确认执行
+（仅当存在可执行步骤或需要上述权限/工具时写「是」；纯闲聊/问候/无需任何操作时写「否」）
 
 约束：不得编造用户未要求的操作；保持与工作区规则一致。除上述结构外不要输出多余客套话。"""
 
@@ -233,6 +238,9 @@ async def _generate_execution_plan(
 
 async def init_application(prompt: str):
     """调用大模型"""
+    from app.risk_policy import load_risk_config
+
+    load_risk_config(force_reload=True)
     agent = await Manus.create()
     # 给前端一条可见进度（stdout 协议），避免只看到 Daytona/MCP 日志却以为未请求模型
     print(
@@ -331,77 +339,104 @@ async def main(
     {workspace_data}
 
 """
-    print(
-        json.dumps(
-            {
-                "type": "stream",
-                "text": "[系统] 正在生成执行计划、所需权限与将使用的应用（尚未执行任何操作）…\n",
-            },
-            ensure_ascii=False,
-        )
-    )
-    sys.stdout.flush()
+    from app.plan_policy import plan_needs_user_confirm, user_task_is_chat_only
 
-    try:
-        plan_text = await _generate_execution_plan(
-            workspace_data, workspace_json_repr, history_block, user_task
-        )
-    except Exception as e:
-        logging.exception("生成执行计划失败")
-        print(
-            json.dumps(
-                {"type": "error", "text": f"生成执行计划失败: {e}"},
-                ensure_ascii=False,
-            )
-        )
-        sys.stdout.flush()
-        return
-
-    plan_text = (plan_text or "").strip()
-    if not plan_text:
-        print(
-            json.dumps(
-                {"type": "error", "text": "模型未返回有效执行计划"},
-                ensure_ascii=False,
-            )
-        )
-        sys.stdout.flush()
-        return
-
-    approved = await wait_plan_confirm(plan_text)
-    if not approved:
+    approved_block = ""
+    if user_task_is_chat_only(user_task):
         print(
             json.dumps(
                 {
                     "type": "stream",
-                    "text": "[系统] 你已取消执行，未启动智能体，也未调用任何工具。\n",
+                    "text": "[系统] 当前为日常对话，无需权限或执行确认，正在回复…\n",
                 },
                 ensure_ascii=False,
             )
         )
         sys.stdout.flush()
-        print(json.dumps({"type": "done"}, ensure_ascii=False))
-        sys.stdout.flush()
-        return
-
-    print(
-        json.dumps(
-            {
-                "type": "stream",
-                "text": "[系统] 已确认计划，正在启动 Agent 按步骤执行…\n",
-            },
-            ensure_ascii=False,
+    else:
+        print(
+            json.dumps(
+                {
+                    "type": "stream",
+                    "text": "[系统] 正在评估是否需要权限或执行任务（尚未调用任何工具）…\n",
+                },
+                ensure_ascii=False,
+            )
         )
-    )
-    sys.stdout.flush()
+        sys.stdout.flush()
 
-    approved_block = f"""
+        try:
+            plan_text = await _generate_execution_plan(
+                workspace_data, workspace_json_repr, history_block, user_task
+            )
+        except Exception as e:
+            logging.exception("生成执行计划失败")
+            print(
+                json.dumps(
+                    {"type": "error", "text": f"生成执行计划失败: {e}"},
+                    ensure_ascii=False,
+                )
+            )
+            sys.stdout.flush()
+            return
+
+        plan_text = (plan_text or "").strip()
+        if not plan_text:
+            print(
+                json.dumps(
+                    {"type": "error", "text": "模型未返回有效执行计划"},
+                    ensure_ascii=False,
+                )
+            )
+            sys.stdout.flush()
+            return
+
+        if plan_needs_user_confirm(plan_text):
+            approved = await wait_plan_confirm(plan_text)
+            if not approved:
+                print(
+                    json.dumps(
+                        {
+                            "type": "stream",
+                            "text": "[系统] 你已取消，未启动智能体，也未调用任何工具。\n",
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                sys.stdout.flush()
+                print(json.dumps({"type": "done"}, ensure_ascii=False))
+                sys.stdout.flush()
+                return
+
+            print(
+                json.dumps(
+                    {
+                        "type": "stream",
+                        "text": "[系统] 已确认权限与执行内容，正在启动 Agent…\n",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            sys.stdout.flush()
+            approved_block = f"""
 ---
 【用户已确认的执行计划】以下计划经用户确认后执行。请严格按计划推进；不得超出已确认范围擅自扩大任务。若执行中必须偏离计划，须先通过 ask_human 向用户说明原因并征求意见。
 
 {plan_text}
 ---
 """
+        else:
+            print(
+                json.dumps(
+                    {
+                        "type": "stream",
+                        "text": "[系统] 无需权限或执行确认，正在启动对话…\n",
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            sys.stdout.flush()
+
     prompt = (
         base
         + history_block

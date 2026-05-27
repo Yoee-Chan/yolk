@@ -12,7 +12,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.stream.Collectors;
 
-@RestControllerAdvice
+/** 仅处理 REST API 异常，避免拦截静态资源 404（favicon、安装包等）。 */
+@RestControllerAdvice(basePackages = {
+        "com.yolk.auth.controller",
+        "com.yolk.chat.controller",
+        "com.yolk.log.controller",
+        "com.yolk.order.controller",
+        "com.yolk.traffic.controller"
+})
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);

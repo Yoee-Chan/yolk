@@ -1,5 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {cloudApi, getStoredToken} from '../api/cloudApi';
+import {useAuth} from '../context/AuthContext';
+import AuthModal from './auth/AuthModal';
 import '../css/Chat.css';
 
 type PendingHumanInput = {
@@ -41,15 +43,15 @@ export interface ChatProps {
     showWelcome: boolean;
     onTaskTitleUpdated?: (taskId: string, title: string) => void;
     onTasksChanged?: () => void;
-    /** \u5df2\u767b\u5f55\u4e14\u5c1a\u672a\u9009\u4e2d\u4efb\u52a1\u65f6\uff0c\u53d1\u9001\u524d\u81ea\u52a8\u521b\u5efa\u4efb\u52a1 */
+    /** 已登录且尚未选中任务时，发送前自动创建任务 */
     onEnsureTask?: () => Promise<{taskId: string; sessionId: string}>;
 }
 
 const WELCOME_TEXT =
-    '\u5728\u4e0b\u65b9\u8f93\u5165\u95ee\u9898\u540e\uff0c\u7cfb\u7edf\u4f1a\u5148\u8bf7\u6a21\u578b\u6574\u7406\u300c\u6267\u884c\u8ba1\u5212\u3001\u6240\u9700\u6743\u9650\u3001\u5c06\u4f7f\u7528\u7684\u7a0b\u5e8f\u300d\u5e76\u8bf7\u4f60\u786e\u8ba4\uff1b\u786e\u8ba4\u540e\u624d\u4f1a\u542f\u52a8 Agent \u4e0e\u5de5\u5177\u3002\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002\u9996\u6b21\u53d1\u9001\u6d88\u606f\u5c06\u81ea\u52a8\u5728\u5de6\u4fa7\u521b\u5efa\u4efb\u52a1\u8bb0\u5f55\u3002';
+    '在下方输入问题后，系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具。取消则不会执行任何操作。首次发送消息将自动在左侧创建任务记录。';
 
 const LOCAL_WELCOME_TEXT =
-    '\u5728\u4e0b\u65b9\u8f93\u5165\u95ee\u9898\u540e\uff0c\u7cfb\u7edf\u4f1a\u5148\u8bf7\u6a21\u578b\u6574\u7406\u300c\u6267\u884c\u8ba1\u5212\u3001\u6240\u9700\u6743\u9650\u3001\u5c06\u4f7f\u7528\u7684\u7a0b\u5e8f\u300d\u5e76\u8bf7\u4f60\u786e\u8ba4\uff1b\u786e\u8ba4\u540e\u624d\u4f1a\u542f\u52a8 Agent \u4e0e\u5de5\u5177\u3002\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002\u767b\u5f55\u540e\u53ef\u4fdd\u5b58\u4efb\u52a1\u5386\u53f2\u3002';
+    '在下方输入问题后点击发送，请先登录或注册。登录后系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具，并可保存任务历史。';
 
 const PROTOCOL_TYPES = new Set([
     'result',
@@ -133,13 +135,13 @@ function DiagPanel({plan, infoLines}: {plan: string; infoLines: string[]}) {
         <div className="chat-diag">
             {hasPlan ? (
                 <details className="chat-diag-plan">
-                    <summary>{'\u6a21\u578b\u8ba1\u5212'}</summary>
+                    <summary>{'模型计划'}</summary>
                     <pre className="chat-diag-pre">{plan}</pre>
                 </details>
             ) : null}
             {hasInfo ? (
                 <div className="chat-diag-conn">
-                    <div className="chat-diag-conn-title">{'\u8fde\u63a5\u4fe1\u606f'}</div>
+                    <div className="chat-diag-conn-title">{'连接信息'}</div>
                     <pre className="chat-diag-pre chat-diag-conn-pre">
                         {infoLines.join('\n')}
                     </pre>
@@ -158,7 +160,9 @@ export default function Chat({
     onTasksChanged,
     onEnsureTask,
 }: ChatProps) {
+    const {user, loading: authLoading} = useAuth();
     const isLocalOnly = initialMessages === null;
+    const [authModalOpen, setAuthModalOpen] = useState(false);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>(() =>
         isLocalOnly
@@ -178,7 +182,7 @@ export default function Chat({
     const sawProtocolPayload = useRef(false);
     const runIdRef = useRef(0);
     const streamingAssistantRef = useRef('');
-    /** \u5f53\u524d\u8f6e\u6b21\u4f7f\u7528\u7684\u4efb\u52a1 ID */
+    /** 当前轮次使用的任务 ID */
     const runTaskIdRef = useRef<string | null>(taskId);
 
     useEffect(() => {
@@ -262,7 +266,7 @@ export default function Chat({
                 return;
             }
             if (t === 'error' && typeof msg.text === 'string') {
-                const errText = `[\u9519\u8bef] ${msg.text}`;
+                const errText = `[错误] ${msg.text}`;
                 streamingAssistantRef.current = errText;
                 appendAssistant(errText);
                 void flushStreamingAssistant();
@@ -271,7 +275,7 @@ export default function Chat({
             }
             if (t === 'need_input' && msg.id != null) {
                 const prompt =
-                    typeof msg.text === 'string' ? msg.text : '\u8bf7\u8f93\u5165\u5185\u5bb9';
+                    typeof msg.text === 'string' ? msg.text : '请输入内容';
                 setHumanDraft('');
                 setPendingHumanInput({id: String(msg.id), promptText: prompt});
                 return;
@@ -309,6 +313,33 @@ export default function Chat({
     };
 
     const cancelHumanInput = () => {
+        if (!pendingHumanInput) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingHumanInput.id,
+            data: '',
+        });
+        setPendingHumanInput(null);
+        setHumanDraft('');
+    };
+
+    const isToolActionConfirm =
+        pendingHumanInput?.promptText.includes('【操作确认】') ?? false;
+
+    const submitToolActionConfirm = () => {
+        if (!pendingHumanInput) {
+            return;
+        }
+        window.api.sendPythonInput({
+            id: pendingHumanInput.id,
+            data: '确认',
+        });
+        setPendingHumanInput(null);
+        setHumanDraft('');
+    };
+
+    const cancelToolActionConfirm = () => {
         if (!pendingHumanInput) {
             return;
         }
@@ -412,6 +443,11 @@ export default function Chat({
     const sendMessage = async () => {
         const text = input.trim();
         if (!text || needsTaskSelection) {
+            return;
+        }
+
+        if (!user) {
+            setAuthModalOpen(true);
             return;
         }
 
@@ -543,11 +579,11 @@ export default function Chat({
 
                 if (!sawProtocolPayload.current) {
                     appendAssistant(
-                        '\u672c\u6b21\u8fd0\u884c\u6ca1\u6709\u5728\u8f93\u51fa\u91cc\u6536\u5230\u6a21\u578b\u7ed3\u679c\uff08\u53ea\u6709\u65e5\u5fd7\u65f6\u4f1a\u88ab\u5ffd\u7565\uff09\u3002\u8bf7\u786e\u8ba4 LLM \u914d\u7f6e\u4e0e\u7f51\u7edc\uff0c\u6216\u67e5\u770b\u5f00\u53d1\u8005\u5de5\u5177\u91cc\u4e3b\u8fdb\u7a0b\u7684 stderr\u3002'
+                        '本次运行没有在输出里收到模型结果（只有日志时会被忽略）。请确认 LLM 配置与网络，或查看开发者工具里主进程的 stderr。'
                     );
                 }
                 if (code !== 0 && code !== null) {
-                    appendAssistant(`[\u8fdb\u7a0b\u9000\u51fa\u7801 ${code}]`);
+                    appendAssistant(`[进程退出码 ${code}]`);
                 }
             }
         );
@@ -555,6 +591,10 @@ export default function Chat({
 
     return (
         <div className="chat-page">
+            <AuthModal
+                open={authModalOpen}
+                onClose={() => setAuthModalOpen(false)}
+            />
             {pendingPlanConfirm ? (
                 <div
                     className="chat-human-overlay"
@@ -564,11 +604,11 @@ export default function Chat({
                 >
                     <div className="chat-human-modal">
                         <div id="chat-plan-title" className="chat-human-title">
-                            {'\u8bf7\u786e\u8ba4\u6267\u884c\u8ba1\u5212'}
+                            {'请确认权限与执行内容'}
                         </div>
                         <p className="chat-plan-hint">
                             {
-                                '\u786e\u8ba4\u540e\u5c06\u542f\u52a8\u667a\u80fd\u4f53\u5e76\u6309\u8ba1\u5212\u8c03\u7528\u5de5\u5177\uff1b\u53d6\u6d88\u5219\u4e0d\u4f1a\u6267\u884c\u4efb\u4f55\u64cd\u4f5c\u3002'
+                                '以下涉及访问权限或即将执行的操作。确认后将启动智能体；取消则不会执行任何操作。'
                             }
                         </p>
                         <pre className="chat-human-prompt chat-plan-body">
@@ -580,14 +620,14 @@ export default function Chat({
                                 className="chat-human-cancel"
                                 onClick={cancelPlanConfirm}
                             >
-                                {'\u53d6\u6d88'}
+                                {'取消'}
                             </button>
                             <button
                                 type="button"
                                 className="chat-human-ok"
                                 onClick={submitPlanConfirm}
                             >
-                                {'\u786e\u8ba4\u6267\u884c'}
+                                {'确认并执行'}
                             </button>
                         </div>
                     </div>
@@ -601,43 +641,72 @@ export default function Chat({
                 >
                     <div className="chat-human-modal">
                         <div id="chat-human-title" className="chat-human-title">
-                            {'\u667a\u80fd\u4f53\u8bf7\u6c42\u8f93\u5165'}
+                            {isToolActionConfirm
+                                ? '请确认操作'
+                                : '智能体请求输入'}
                         </div>
-                        <pre className="chat-human-prompt">
+                        {isToolActionConfirm ? (
+                            <p className="chat-plan-hint">
+                                {
+                                    '确认后将执行上述工具调用；取消则不会执行。'
+                                }
+                            </p>
+                        ) : null}
+                        <pre
+                            className={
+                                isToolActionConfirm
+                                    ? 'chat-human-prompt chat-plan-body'
+                                    : 'chat-human-prompt'
+                            }
+                        >
                             {pendingHumanInput.promptText}
                         </pre>
-                        <textarea
-                            ref={humanInputRef}
-                            className="chat-human-textarea"
-                            rows={4}
-                            value={humanDraft}
-                            onChange={(e) => setHumanDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    submitHumanInput();
+                        {!isToolActionConfirm ? (
+                            <textarea
+                                ref={humanInputRef}
+                                className="chat-human-textarea"
+                                rows={4}
+                                value={humanDraft}
+                                onChange={(e) => setHumanDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        submitHumanInput();
+                                    }
+                                    if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        cancelHumanInput();
+                                    }
+                                }}
+                                placeholder={
+                                    '在此输入回复…（Enter 提交，Shift+Enter 换行，Esc 取消）'
                                 }
-                                if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelHumanInput();
-                                }
-                            }}
-                            placeholder={'\u5728\u6b64\u8f93\u5165\u56de\u590d\u2026\uff08Enter \u63d0\u4ea4\uff0cShift+Enter \u6362\u884c\uff0cEsc \u53d6\u6d88\uff09'}
-                        />
+                            />
+                        ) : null}
                         <div className="chat-human-actions">
                             <button
                                 type="button"
                                 className="chat-human-cancel"
-                                onClick={cancelHumanInput}
+                                onClick={
+                                    isToolActionConfirm
+                                        ? cancelToolActionConfirm
+                                        : cancelHumanInput
+                                }
                             >
-                                {'\u8df3\u8fc7\uff08\u53d1\u9001\u7a7a\u5185\u5bb9\uff09'}
+                                {'取消'}
                             </button>
                             <button
                                 type="button"
                                 className="chat-human-ok"
-                                onClick={submitHumanInput}
+                                onClick={
+                                    isToolActionConfirm
+                                        ? submitToolActionConfirm
+                                        : submitHumanInput
+                                }
                             >
-                                {'\u63d0\u4ea4'}
+                                {isToolActionConfirm
+                                    ? '确认执行'
+                                    : '提交'}
                             </button>
                         </div>
                     </div>
@@ -647,7 +716,7 @@ export default function Chat({
                 {needsTaskSelection ? (
                     <div className="chat-empty-hint">
                         {
-                            '\u8bf7\u5148\u767b\u5f55\uff0c\u6216\u5728\u5de6\u4fa7\u70b9\u51fb\u300c\u521b\u5efa\u65b0\u4efb\u52a1\u300d\u3001\u9009\u62e9\u4e00\u6761\u5386\u53f2\u4efb\u52a1\u540e\u518d\u5f00\u59cb\u5bf9\u8bdd\u3002'
+                            '请先登录，或在左侧点击「创建新任务」、选择一条历史任务后再开始对话。'
                         }
                     </div>
                 ) : null}
@@ -663,7 +732,7 @@ export default function Chat({
                             }`}
                         >
                             <div className="msg-role">
-                                {m.role === 'user' ? '\u4f60' : 'AI'}
+                                {m.role === 'user' ? '你' : 'AI'}
                             </div>
                             <div>{m.content}</div>
                         </div>
@@ -675,15 +744,20 @@ export default function Chat({
                     <input
                         placeholder={
                             needsTaskSelection
-                                ? '\u8bf7\u5148\u521b\u5efa\u6216\u9009\u62e9\u4efb\u52a1\u2026'
-                                : '\u8f93\u5165\u4f60\u7684\u95ee\u9898...'
+                                ? '请先创建或选择任务…'
+                                : !user
+                                  ? '输入问题后发送（需先登录）…'
+                                  : '输入你的问题...'
                         }
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) =>
-                            e.key === 'Enter' && !e.shiftKey && sendMessage()
+                            e.key === 'Enter' &&
+                            !e.shiftKey &&
+                            !authLoading &&
+                            sendMessage()
                         }
-                        disabled={needsTaskSelection}
+                        disabled={needsTaskSelection || authLoading}
                     />
                     <div className="chat-input-actions">
                         {busy && !input.trim() ? (
@@ -692,18 +766,22 @@ export default function Chat({
                                 className="chat-cancel"
                                 onClick={cancelRun}
                             >
-                                {'\u53d6\u6d88'}
+                                {'取消'}
                             </button>
                         ) : null}
                         <button
                             type="button"
                             className="chat-send"
                             onClick={sendMessage}
-                            disabled={!input.trim() || needsTaskSelection}
+                            disabled={
+                                !input.trim() ||
+                                needsTaskSelection ||
+                                authLoading
+                            }
                         >
                             {busy
-                                ? '\u53d1\u9001\uff08\u5c06\u4e2d\u65ad\u5f53\u524d\u4efb\u52a1\uff09'
-                                : '\u53d1\u9001'}
+                                ? '发送（将中断当前任务）'
+                                : '发送'}
                         </button>
                     </div>
                 </div>

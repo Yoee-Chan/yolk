@@ -43,13 +43,13 @@ interface Props {
 }
 
 const WEEKDAY_OPTIONS = [
-    {value: 1, label: '\u5468\u4e00'},
-    {value: 2, label: '\u5468\u4e8c'},
-    {value: 3, label: '\u5468\u4e09'},
-    {value: 4, label: '\u5468\u56db'},
-    {value: 5, label: '\u5468\u4e94'},
-    {value: 6, label: '\u5468\u516d'},
-    {value: 0, label: '\u5468\u65e5'},
+    {value: 1, label: '周一'},
+    {value: 2, label: '周二'},
+    {value: 3, label: '周三'},
+    {value: 4, label: '周四'},
+    {value: 5, label: '周五'},
+    {value: 6, label: '周六'},
+    {value: 0, label: '周日'},
 ];
 
 function toFormValues(def: PipelineDefinition | null): DefinitionFormValues {
@@ -112,8 +112,8 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
     };
 
     const title = editing
-        ? `\u7f16\u8f91\u6d41\u6c34\u7ebf\u00b7${editing.name}`
-        : '\u65b0\u5efa\u6d41\u6c34\u7ebf\u4efb\u52a1';
+        ? `编辑流水线·${editing.name}`
+        : '新建流水线任务';
 
     return (
         <Modal
@@ -124,12 +124,12 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
             destroyOnHidden
             footer={
                 <Space>
-                    <Button onClick={onCancel}>{'\u53d6\u6d88'}</Button>
+                    <Button onClick={onCancel}>{'取消'}</Button>
                     {step > 0 && (
-                        <Button onClick={() => setStep(step - 1)}>{'\u4e0a\u4e00\u6b65'}</Button>
+                        <Button onClick={() => setStep(step - 1)}>{'上一步'}</Button>
                     )}
                     <Button type="primary" onClick={handleOk}>
-                        {step < 2 ? '\u4e0b\u4e00\u6b65' : editing ? '\u4fdd\u5b58' : '\u521b\u5efa'}
+                        {step < 2 ? '下一步' : editing ? '保存' : '创建'}
                     </Button>
                 </Space>
             }
@@ -139,36 +139,36 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                 size="small"
                 style={{marginBottom: 20}}
                 items={[
-                    {title: '\u5f00\u59cb', content: '\u8bbe\u7f6e\u65f6\u95f4'},
-                    {title: '\u8fc7\u7a0b', content: '\u9636\u6bb5\u4e0e\u6743\u9650'},
-                    {title: '\u786e\u8ba4', content: '\u9884\u89c8\u914d\u7f6e'},
+                    {title: '开始', content: '设置时间'},
+                    {title: '过程', content: '阶段与权限'},
+                    {title: '确认', content: '预览配置'},
                 ]}
             />
 
             <p className="pipeline-phase-hint">
-                <strong>{'\u9636\u6bb5\u8bf4\u660e\uff1a'}</strong>
-                {'\u5f00\u59cb\u8bbe\u5b9a\u6267\u884c\u65f6\u95f4 \u2192 \u8fc7\u7a0b\u53ef\u589e\u52a0\u591a\u4e2a\u9636\u6bb5\u5e76\u914d\u7f6e\u6743\u9650 \u2192 \u6267\u884c\u7ed3\u679c\u4e3a\u5b8c\u6210\u3001\u9519\u8bef\u6216\u5df2\u5f03\u7528'}
+                <strong>{'阶段说明：'}</strong>
+                {'开始设定执行时间 → 过程可增加多个阶段并配置权限 → 执行结果为完成、错误或已弃用'}
             </p>
 
             <Form form={form} layout="vertical" preserve={false}>
                 {step === 0 && (
                     <>
-                        <p className="form-section-title">{'\u57fa\u672c\u4fe1\u606f'}</p>
+                        <p className="form-section-title">{'基本信息'}</p>
                         <Form.Item
                             name="name"
-                            label={'\u4efb\u52a1\u540d\u79f0'}
-                            rules={[{required: true, message: '\u8bf7\u8f93\u5165\u540d\u79f0'}]}
+                            label={'任务名称'}
+                            rules={[{required: true, message: '请输入名称'}]}
                         >
-                            <Input placeholder={'\u4f8b\uff1aHSBC \u4ea4\u6613\u62a5\u8868\u62c9\u53d6'}/>
+                            <Input placeholder={'例：HSBC 交易报表拉取'}/>
                         </Form.Item>
-                        <Form.Item name="description" label={'\u63cf\u8ff0'}>
-                            <TextArea rows={2} placeholder={'\u7b80\u8981\u8bf4\u660e\u8be5\u6d41\u6c34\u7ebf\u505a\u4ec0\u4e48'}/>
+                        <Form.Item name="description" label={'描述'}>
+                            <TextArea rows={2} placeholder={'简要说明该流水线做什么'}/>
                         </Form.Item>
 
-                        <p className="form-section-title">{'\u5f00\u59cb \u00b7 \u6267\u884c\u65f6\u95f4'}</p>
+                        <p className="form-section-title">{'开始 · 执行时间'}</p>
                         <Form.Item
                             name="scheduleType"
-                            label={'\u8c03\u5ea6\u7c7b\u578b'}
+                            label={'调度类型'}
                             rules={[{required: true}]}
                         >
                             <Select
@@ -181,8 +181,8 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                         {scheduleType === 'once' && (
                             <Form.Item
                                 name="scheduleDatetime"
-                                label={'\u6267\u884c\u65e5\u671f\u4e0e\u65f6\u95f4'}
-                                rules={[{required: true, message: '\u8bf7\u9009\u62e9\u65f6\u95f4'}]}
+                                label={'执行日期与时间'}
+                                rules={[{required: true, message: '请选择时间'}]}
                             >
                                 <DatePicker showTime style={{width: '100%'}}/>
                             </Form.Item>
@@ -191,8 +191,8 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                         {(scheduleType === 'daily' || scheduleType === 'weekly') && (
                             <Form.Item
                                 name="scheduleTime"
-                                label={'\u6bcf\u65e5\u6267\u884c\u65f6\u95f4'}
-                                rules={[{required: true, message: '\u8bf7\u9009\u62e9\u65f6\u95f4'}]}
+                                label={'每日执行时间'}
+                                rules={[{required: true, message: '请选择时间'}]}
                             >
                                 <TimePicker format="HH:mm" style={{width: '100%'}}/>
                             </Form.Item>
@@ -201,13 +201,13 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                         {scheduleType === 'weekly' && (
                             <Form.Item
                                 name="weekdays"
-                                label={'\u6267\u884c\u661f\u671f'}
+                                label={'执行星期'}
                                 rules={[
                                     {
                                         required: true,
                                         type: 'array',
                                         min: 1,
-                                        message: '\u81f3\u5c11\u9009\u62e9\u4e00\u5929',
+                                        message: '至少选择一天',
                                     },
                                 ]}
                             >
@@ -219,14 +219,14 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
 
                 {step === 1 && (
                     <>
-                        <p className="form-section-title">{'\u8fc7\u7a0b \u00b7 \u9636\u6bb5\u4e0e\u6743\u9650'}</p>
+                        <p className="form-section-title">{'过程 · 阶段与权限'}</p>
                         <Form.List
                             name="stages"
                             rules={[
                                 {
                                     validator: async (_, stages) => {
                                         if (!stages || stages.length < 1) {
-                                            throw new Error('\u81f3\u5c11\u6dfb\u52a0\u4e00\u4e2a\u9636\u6bb5');
+                                            throw new Error('至少添加一个阶段');
                                         }
                                     },
                                 },
@@ -238,7 +238,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                         <section key={field.key} className="stage-editor-row">
                                             <header className="stage-editor-row__head">
                                                 <span className="stage-editor-row__index">
-                                                    {'\u9636\u6bb5 '}{index + 1}
+                                                    {'阶段 '}{index + 1}
                                                 </span>
                                                 {fields.length > 1 && (
                                                     <Button
@@ -248,34 +248,34 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                                         icon={<DeleteOutlined/>}
                                                         onClick={() => remove(field.name)}
                                                     >
-                                                        {'\u5220\u9664'}
+                                                        {'删除'}
                                                     </Button>
                                                 )}
                                             </header>
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, 'name']}
-                                                label={'\u9636\u6bb5\u540d\u79f0'}
-                                                rules={[{required: true, message: '\u8bf7\u8f93\u5165\u9636\u6bb5\u540d'}]}
+                                                label={'阶段名称'}
+                                                rules={[{required: true, message: '请输入阶段名'}]}
                                             >
-                                                <Input placeholder={'\u4f8b\uff1a\u6253\u5f00\u90ae\u7bb1'}/>
+                                                <Input placeholder={'例：打开邮箱'}/>
                                             </Form.Item>
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, 'description']}
-                                                label={'\u8bf4\u660e'}
+                                                label={'说明'}
                                             >
-                                                <Input placeholder={'\u53ef\u9009'}/>
+                                                <Input placeholder={'可选'}/>
                                             </Form.Item>
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, 'permissions']}
-                                                label={'\u6743\u9650\u914d\u7f6e'}
+                                                label={'权限配置'}
                                             >
                                                 <Select
                                                     mode="multiple"
                                                     allowClear
-                                                    placeholder={'\u9009\u62e9\u8be5\u9636\u6bb5\u6240\u9700\u6743\u9650'}
+                                                    placeholder={'选择该阶段所需权限'}
                                                     options={PERMISSION_OPTIONS.map((p) => ({
                                                         value: p.value,
                                                         label: p.label,
@@ -290,7 +290,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                         icon={<PlusOutlined/>}
                                         onClick={() => add({name: '', description: '', permissions: []})}
                                     >
-                                        {'\u6dfb\u52a0\u9636\u6bb5'}
+                                        {'添加阶段'}
                                     </Button>
                                 </>
                             )}
@@ -304,7 +304,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                             const v = form.getFieldsValue();
                             return (
                                 <section>
-                                    <p className="form-section-title">{'\u786e\u8ba4\u914d\u7f6e'}</p>
+                                    <p className="form-section-title">{'确认配置'}</p>
                                     <p>
                                         <Text strong>{v.name}</Text>
                                     </p>
@@ -315,11 +315,11 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                     )}
                                     <p style={{marginTop: 12}}>
                                         <TagLike color="blue">
-                                            {'\u5f00\u59cb \u00b7 '}
+                                            {'开始 · '}
                                             {scheduleTypeLabel(v.scheduleType)}
-                                            {v.scheduleTime && ` \u00b7 ${v.scheduleTime.format('HH:mm')}`}
+                                            {v.scheduleTime && ` · ${v.scheduleTime.format('HH:mm')}`}
                                             {v.scheduleDatetime &&
-                                                ` \u00b7 ${v.scheduleDatetime.format('YYYY-MM-DD HH:mm')}`}
+                                                ` · ${v.scheduleDatetime.format('YYYY-MM-DD HH:mm')}`}
                                         </TagLike>
                                     </p>
                                     <ol style={{marginTop: 16, paddingLeft: 20}}>
@@ -345,7 +345,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                     </ol>
                                     <Text type="secondary" style={{fontSize: 12}}>
                                         {
-                                            '\u6267\u884c\u540e\u7ed3\u679c\u5c06\u6807\u8bb0\u4e3a\u5b8c\u6210\u3001\u9519\u8bef\u6216\u5df2\u5f03\u7528\uff08\u8fdb\u884c\u4e2d\u53ef\u624b\u52a8\u53d6\u6d88\uff09'
+                                            '执行后结果将标记为完成、错误或已弃用（进行中可手动取消）'
                                         }
                                     </Text>
                                 </section>

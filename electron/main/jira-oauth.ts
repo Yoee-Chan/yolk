@@ -46,7 +46,7 @@ export function runAtlassianOAuthFlow(
             if (code) {
                 res.end(
                     '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:48px">' +
-                        '<h2>✓ Jira 登录成功</h2><p>可以关闭此窗口并返回 Yolk。</p></body></html>'
+                        '<h2>✓ Jira 登录成功</h2><p>可以关闭此窗口并返回 Yolk助手。</p></body></html>'
                 )
                 finish(() => resolve(code))
             } else {
