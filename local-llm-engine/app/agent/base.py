@@ -2,10 +2,11 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import Callable, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from app.llm import LLM
 from app.logger import logger
+from app.memory_store import JsonMemoryStore, MemoryStore
 from app.sandbox.client import SANDBOX_CLIENT
 from app.schema import ROLE_TYPE, AgentState, Memory, Message
 
@@ -42,6 +43,8 @@ class BaseAgent(BaseModel, ABC):
 
     duplicate_threshold: int = 2
 
+    _memory_store: MemoryStore = PrivateAttr(default_factory=JsonMemoryStore)
+
     class Config:
         arbitrary_types_allowed = True
         extra = "allow"  # Allow extra fields for flexibility in subclasses
@@ -53,7 +56,16 @@ class BaseAgent(BaseModel, ABC):
             self.llm = LLM(config_name=self.name.lower())
         if not isinstance(self.memory, Memory):
             self.memory = Memory()
+        self.load_memory()
         return self
+
+    def load_memory(self) -> None:
+        """Load persisted memory from disk."""
+        self.memory = self._memory_store.load()
+
+    def save_memory(self) -> None:
+        """Persist current memory to disk."""
+        self._memory_store.save(self.memory)
 
     @asynccontextmanager
     async def state_context(self, new_state: AgentState):
@@ -112,6 +124,7 @@ class BaseAgent(BaseModel, ABC):
         # Create message with appropriate parameters based on role
         kwargs = {"base64_image": base64_image, **(kwargs if role == "tool" else {})}
         self.memory.add_message(message_map[role](content, **kwargs))
+        self.save_memory()
 
     async def run(
         self,

@@ -43,9 +43,11 @@ class ToolCallAgent(ReActAgent):
             self.messages += [user_msg]
 
         try:
-            # Get response with tool options
+            # Get response with tool options. Build a selective memory context instead
+            # of sending the full raw conversation history to the model.
+            latest_query = self.messages[-1].content if self.messages else ""
             response = await self.llm.ask_tool(
-                messages=self.messages,
+                messages=self.memory.build_context_messages(latest_query or ""),
                 system_msgs=(
                     [Message.system_message(self.system_prompt)]
                     if self.system_prompt

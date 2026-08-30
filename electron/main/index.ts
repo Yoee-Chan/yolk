@@ -1,5 +1,6 @@
 import {app, BrowserWindow, ipcMain, dialog, WebContents, session, Menu} from 'electron'
 import path from 'path'
+import {promises as fs} from 'fs'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
 import {runAtlassianOAuthFlow} from './jira-oauth'
@@ -8,6 +9,35 @@ let py: ChildProcessWithoutNullStreams | null = null
 /** 最近一次发起 agent 渲染进程的 WebContents，用于复用子进程时仍能推送 stdout/stderr */
 let streamSender: WebContents | null = null
 let mainWindow: BrowserWindow | null = null
+
+type WechatArticleDraft = {
+    title: string
+    subtitle: string
+    content: string
+    outlineTree: unknown[]
+    updatedAt: string
+}
+
+async function getConfiguredWorkspaceRoot(): Promise<string> {
+    const configPath = path.join(process.cwd(), 'agent-controller', 'llm_config', 'workspace.json')
+    try {
+        const config = JSON.parse(await fs.readFile(configPath, 'utf8')) as {workSpace?: unknown}
+        if (typeof config.workSpace === 'string' && config.workSpace.trim()) {
+            return path.resolve(config.workSpace)
+        }
+    } catch {
+        // 配置不可用时使用稳定的本地默认位置。
+    }
+    return path.join(app.getPath('documents'), 'workspace')
+}
+
+async function wechatWorkspacePath(): Promise<string> {
+    return path.join(await getConfiguredWorkspaceRoot(), '微信公众号')
+}
+
+async function wechatArticlePath(): Promise<string> {
+    return path.join(await wechatWorkspacePath(), '最近文章.json')
+}
 
 /** Windows 默认控制台编码为 GBK；子进程与前端统一使用 UTF-8，避免中文乱码 */
 function getPythonChildEnv(): NodeJS.ProcessEnv {
@@ -279,6 +309,29 @@ app.whenReady().then(() => {
             py.stdin.write(Buffer.from(JSON.stringify(data) + '\n', 'utf8'))
         }
     })
+    ipcMain.handle('load-wechat-article', async () => {
+        try {
+            const value = await fs.readFile(await wechatArticlePath(), 'utf8')
+            return JSON.parse(value) as WechatArticleDraft
+        } catch {
+            return null
+        }
+    })
+
+    ipcMain.handle('save-wechat-article', async (_event, article: WechatArticleDraft) => {
+        const draft: WechatArticleDraft = {
+            title: String(article?.title ?? ''),
+            subtitle: String(article?.subtitle ?? ''),
+            content: String(article?.content ?? ''),
+            outlineTree: Array.isArray(article?.outlineTree) ? article.outlineTree : [],
+            updatedAt: new Date().toISOString(),
+        }
+        const workspacePath = await wechatWorkspacePath()
+        await fs.mkdir(workspacePath, {recursive: true})
+        await fs.writeFile(path.join(workspacePath, '最近文章.json'), JSON.stringify(draft, null, 2), 'utf8')
+        return true
+    })
+
     //文件夹选择
     ipcMain.handle('select-folder', async () => {
         const result = await dialog.showOpenDialog({

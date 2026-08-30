@@ -1,20 +1,24 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8088}
   tomcat:
     max-http-form-post-size: 16MB
+  ssl:
+    enabled: ${SERVER_SSL_ENABLED:false}
+    key-store: ${SERVER_SSL_KEY_STORE:}
+    key-store-type: ${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
+    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:}
+    key-alias: ${SERVER_SSL_KEY_ALIAS:}
 
 spring:
   application:
     name: yolk-cloud
-  datasource:
-    url: jdbc:mysql://localhost:3306/yolk?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    password: ${MYSQL_PASSWORD:123456}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  profiles:
+    default: local
   flyway:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 3
+
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.yolk
@@ -25,10 +29,8 @@ yolk:
   jwt:
     secret: ${JWT_SECRET:change-this-secret-in-production-must-be-at-least-32-chars}
     expiration-ms: 604800000
-  cors:
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173
 
 logging:
   level:
-    com.yolk: DEBUG
-    org.mybatis: DEBUG
+    com.yolk: INFO
+    org.mybatis: INFO

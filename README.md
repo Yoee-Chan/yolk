@@ -266,16 +266,295 @@ conda activate yolk
 └──────────────────────────────────────────────────────────────┘
 ```
 
+EMC 的总公式：记忆激活度（Memory Activation）
+核心思想：
 
+当用户提出一个问题时，每个长期记忆节点都会计算一个“激活度 A”。激活度越高，越容易被检索出来并进入本次 LLM 上下文。
 
+当前实现不是把所有历史消息无脑丢给大模型，而是使用：
+
+```text
+LLM 输入 = 系统提示词 + 选择性记忆上下文 + 最近原始消息窗口 + 当前用户问题
+```
+
+其中“选择性记忆上下文”由下面的激活公式筛选得到。
+
+### 当前实现采用的总公式
+
+```text
+A = I' · D · F · C · R · N
+```
+
+| 符号 | 含义 | 对应代码字段 / 机制 |
+| --- | --- | --- |
+| A | 记忆激活度，最终排序依据 | `MemoryActivation.score` |
+| I' | 有效重要度 | `importance` + `stability` |
+| D | 遗忘衰减曲线 | 距离上次访问的时间 |
+| F | 访问频率强化曲线 | `access_count` |
+| C | 线索匹配度 | keyword / topic / entity |
+| R | 新近性先验 | 距离创建时间 |
+| N | 重复记忆惩罚 | 防止相似记忆挤占上下文 |
+
+### ① 有效重要度 I'
+
+```text
+I' = 0.70 · importance + 0.30 · stability
+```
+
+解释：
+
+- `importance` 表示这条记忆本身有多重要。
+- `stability` 表示这条记忆有多稳定、长期有效。
+- 用户身份、长期偏好、明确要求通常 importance 和 stability 都高。
+- 普通闲聊、临时任务过程通常 importance 较低。
+
+这样可以避免只靠“最近出现”来判断重要性。
+
+### ② 遗忘衰减曲线 D
+
+```text
+D = exp(-(λ · (1.15 - stability)) · days_since_access)
+```
+
+其中：
+
+- `λ = decay_lambda`，当前默认值为 `0.035`。
+- `days_since_access` 表示距离这条记忆上次被访问过去了多少天。
+- `stability` 越高，实际衰减速度越慢。
+
+设计目的：
+
+- 刚访问过的记忆更容易被想起。
+- 很久不用的记忆会逐渐降低权重。
+- 稳定记忆，例如“用户名字 / 长期偏好 / 固定规则”，不会因为时间变久就快速消失。
+
+### ③ 访问频率强化曲线 F
+
+旧方案可以用：
+
+```text
+F = log(1 + n)
+```
+
+但当前实现做了有界调整：
+
+```text
+F = 1 + 0.75 · tanh(log(1 + access_count) / 3)
+```
+
+调整原因：
+
+- 高频访问的记忆确实应该更容易被想起。
+- 但如果只用 `log(1+n)`，访问次数很高的记忆可能长期霸占上下文。
+- 使用 `tanh` 后，频率强化有上限，最高大约接近 `1.75`。
+
+这样既能体现“越常用越容易想起”，又不会让某条旧记忆无限膨胀。
+
+### ④ 线索匹配度 C
+
+```text
+C = αK + βT + γE
+```
+
+当前权重：
+
+```text
+α = 0.50   keyword 权重
+β = 0.30   topic 权重
+γ = 0.20   entity 权重
+```
+
+含义：
+
+- `K`：当前问题和记忆 `keywords + summary` 的匹配度。
+- `T`：当前问题和记忆 `topics` 的匹配度。
+- `E`：当前问题和记忆 `entities` 的匹配度。
+
+匹配函数采用类余弦重叠：
+
+```text
+overlap_score = hits / sqrt(len(query_tokens) · len(memory_tokens))
+```
+
+这样比简单命中数量更稳：
+
+- 短问题不会因为 token 少而完全吃亏。
+- 长记忆不会因为关键词多而天然占优。
+- 中文和英文 token 都可以参与匹配。
+
+### ⑤ 新近性先验 R
+
+```text
+R = 0.85 + 0.15 · exp(-days_since_created / 30)
+```
+
+设计目的：
+
+- 新创建的记忆有轻微加成。
+- 这个加成最多只有 `0.15`，不会压过重要度和线索匹配。
+- 30 天左右逐渐趋近基础值 `0.85`。
+
+这相当于给“最近形成的记忆”一点启动权重，但不让它破坏长期稳定记忆。
+
+### ⑥ 重复记忆惩罚 N
+
+```text
+N = 1 / sqrt(duplicate_hits)
+```
+
+其中：
+
+- `duplicate_hits` 表示相似摘要的重复数量。
+- 重复越多，每条重复记忆的单体得分越低。
+
+设计目的：
+
+- 防止同一件事被多次保存后，占满上下文。
+- 鼓励系统通过 `_upsert_node` 合并相似记忆，而不是无限追加节点。
 
 ## 数据结构
 
+当前记忆系统采用三层结构：
+
+### 1. 短期记忆 messages
+
+保存最近原始对话消息。
+
+关键参数：
+
+```text
+max_messages = 120
+recent_message_window = 10
+```
+
+作用：
+
+- `max_messages` 是内存里的原始消息上限。
+- `recent_message_window` 是每次真正传给 LLM 的最近消息数量。
+- 这样保留短期连续性，但不会把全部历史传给模型。
+
+### 2. 压缩情节 episodes
+
+每隔一段对话自动把最近消息压缩成一个 `MemoryEpisode`。
+
+字段：
+
+```text
+id
+summary
+key_points
+message_count
+created_at
+last_message_at
+```
+
+作用：
+
+- 保存“最近一段对话发生了什么”。
+- 用于重建阶段性上下文。
+- 每次最多注入最近 `recent_episode_window = 3` 个 episode。
+
+### 3. 长期记忆图 nodes
+
+长期记忆使用 `MemoryNode` 表示。
+
+字段：
+
+```text
+id
+kind              # topic / person / preference / event / fact / episode
+summary
+keywords
+topics
+entities
+attributes
+importance
+stability
+access_count
+created_at
+last_accessed_at
+related_ids
+```
+
+作用：
+
+- 保存长期稳定事实。
+- 保存用户偏好。
+- 保存身份信息。
+- 保存重要任务主题。
+- 通过 `related_ids` 支持后续扩展为图谱结构。
+
 ## 衰减函数
+
+当前使用稳定性修正后的艾宾浩斯式指数衰减：
+
+```text
+D = exp(-(λ · (1.15 - stability)) · days_since_access)
+```
+
+如果一条记忆 stability 高，它的实际衰减系数会变小。
+
+例如：
+
+```text
+λ = 0.035
+stability = 0.80
+实际衰减系数 = 0.035 · (1.15 - 0.80) = 0.01225
+```
+
+这表示长期偏好和身份信息会慢慢衰减，而不是几天不用就消失。
 
 ## 线索检索算法
 
+检索流程：
+
+```text
+1. 对用户当前问题分词，得到 query_tokens
+2. 遍历所有 MemoryNode
+3. 分别计算 keyword_score、topic_score、entity_score
+4. 计算 cue = 0.50K + 0.30T + 0.20E
+5. 计算 A = I' · D · F · C · R · N
+6. 过滤 A < recall_threshold 的节点
+7. 按 A 从高到低排序
+8. 取 recall_top_k 条进入上下文
+9. 被选中的节点 access_count + 1，并更新 last_accessed_at
+```
+
+当前参数：
+
+```text
+recall_top_k = 8
+recall_threshold = 0.06
+```
+
 ## 回忆重建 prompt
+
+每次传给大模型的选择性记忆上下文格式如下：
+
+```text
+Selective memory context. Use it only when relevant; do not assume missing facts.
+
+Recent compressed episodes:
+- episode summary | key_points=...
+
+Recalled long-term memory:
+- [person] ... (A=..., C=..., D=..., F=...)
+- [preference] ... (A=..., C=..., D=..., F=...)
+- [topic] ... (A=..., C=..., D=..., F=...)
+```
+
+然后再拼接最近原始消息窗口：
+
+```text
+最终 LLM messages = [选择性记忆 system message] + 最近 10 条原始 messages
+```
+
+注意：
+
+- 不把全部历史消息传给模型。
+- 不把所有长期记忆传给模型。
+- 只有超过激活阈值并排在 top_k 内的记忆才会进入上下文。
+- 记忆上下文本身还会受到 `max_context_chars = 8000` 限制。
 
 ## 文件组织结构
 

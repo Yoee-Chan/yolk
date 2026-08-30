@@ -7,8 +7,9 @@ import {
     ApiOutlined,
     LinkOutlined,
     LayoutOutlined,
+    WechatOutlined,
 } from '@ant-design/icons';
-import {SHOW_TOKEN_MANAGE} from '../config/featureFlags';
+import {SHOW_PIPELINE_TASK, SHOW_TOKEN_MANAGE} from '../config/featureFlags';
 
 const yolkLogo = '/yolk-logo.png';
 
@@ -19,6 +20,7 @@ type SettingProps = {
 
 const items = [
     {key: 'chat', icon: <CommentOutlined/>, label: '新任务编排'},
+    {key: 'wechatArticle', icon: <WechatOutlined/>, label: '公众号编排'},
     {key: 'pipelineTask', icon: <ApiOutlined/>, label: '流水线任务'},
     {key: 'tokenMange', icon: <MenuOutlined/>, label: '词元流量管理'},
     {key: 'skill', icon: <SearchOutlined/>, label: '能力扩展'},
@@ -53,7 +55,8 @@ export default function Assistant({activeItem, onClickItem}: SettingProps) {
                 {items
                     .filter(
                         (item) =>
-                            item.key !== 'tokenMange' || SHOW_TOKEN_MANAGE
+                            (item.key !== 'tokenMange' || SHOW_TOKEN_MANAGE) &&
+                            (item.key !== 'pipelineTask' || SHOW_PIPELINE_TASK)
                     )
                     .map((item) => {
                     const isActive = item.key === activeItem;
