@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080';
+const BASE_URL = import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8088';
 
 export interface ApiResponse<T> {
     code: number;

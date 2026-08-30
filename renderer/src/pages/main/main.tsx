@@ -10,14 +10,16 @@ import PipelineTask from '../../components/PipelineTask';
 import TokenMange from '../../components/TokenMange';
 import Setting from '../../components/Setting';
 import Connectors from '../../components/Connectors';
+import WeChatArticleComposer from '../../components/WeChatArticleComposer';
 import UserProfileBar from '../../components/auth/UserProfileBar';
 import {cloudApi, type ChatTaskSummary} from '../../api/cloudApi';
 import {useAuth} from '../../context/AuthContext';
-import {SHOW_TOKEN_MANAGE} from '../../config/featureFlags';
+import {SHOW_PIPELINE_TASK, SHOW_TOKEN_MANAGE} from '../../config/featureFlags';
 
 const PageMap = {
     chat: Chat,
     newTask: NewTask,
+    wechatArticle: WeChatArticleComposer,
     pipelineTask: PipelineTask,
     tokenMange: TokenMange,
     skill: Found,
@@ -48,7 +50,10 @@ export default function MainPage() {
     }, [user]);
 
     useEffect(() => {
-        if (!SHOW_TOKEN_MANAGE && activeKey === 'tokenMange') {
+        if (
+            (!SHOW_TOKEN_MANAGE && activeKey === 'tokenMange') ||
+            (!SHOW_PIPELINE_TASK && activeKey === 'pipelineTask')
+        ) {
             setActiveKey('chat');
         }
     }, [activeKey]);
@@ -169,8 +174,8 @@ export default function MainPage() {
     const ActiveComponent = PageMap[activeKey];
 
     return (
-        <div className="layout">
-            <aside className="sidebar">
+        <div className={activeKey === 'wechatArticle' ? 'layout layout--composer' : 'layout'}>
+            {activeKey !== 'wechatArticle' ? <aside className="sidebar">
                 <Assistant activeItem={activeKey} onClickItem={setActiveKey}/>
                 <div className="sidebar-divider" role="separator"/>
                 <History
@@ -191,7 +196,7 @@ export default function MainPage() {
                         }
                     />
                 </div>
-            </aside>
+            </aside> : null}
             <div className="main-panel">
                 {activeKey === 'chat' ? (
                     <Chat
@@ -204,6 +209,8 @@ export default function MainPage() {
                         onTasksChanged={refreshTasks}
                         onEnsureTask={user ? ensureActiveTask : undefined}
                     />
+                ) : activeKey === 'wechatArticle' ? (
+                    <WeChatArticleComposer onBack={() => setActiveKey('chat')}/>
                 ) : (
                     <ActiveComponent/>
                 )}

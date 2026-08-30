@@ -1,11 +1,15 @@
-interface ImportMetaEnv {
-    readonly VITE_YOLK_API_URL?: string;
-}
-
 declare module '*.png' {
     const src: string;
     export default src;
 }
+
+type WechatArticleDraft = {
+    title: string;
+    subtitle: string;
+    content: string;
+    outlineTree: unknown[];
+    updatedAt: string;
+};
 
 declare global {
     interface Window {
@@ -24,6 +28,8 @@ declare global {
             onPythonInputEcho?: (callback: (data: string) => void) => void;
 
             selectFolder: () => Promise<string | null>;
+            loadWechatArticle: () => Promise<WechatArticleDraft | null>;
+            saveWechatArticle: (article: WechatArticleDraft) => Promise<boolean>;
             llmSetting: (Param: string) => Promise<string>;
             jiraOAuthLogin: (options?: {
                 default_project_key?: string;

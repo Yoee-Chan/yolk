@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('agent-controller-input-echo', (_, data) => callback(data));
     },
     selectFolder: () => ipcRenderer.invoke('select-folder'),
+    loadWechatArticle: () => ipcRenderer.invoke('load-wechat-article'),
+    saveWechatArticle: (article: unknown) => ipcRenderer.invoke('save-wechat-article', article),
 
     llmSetting: (param: string) => ipcRenderer.invoke("llm-Setting", param),
 

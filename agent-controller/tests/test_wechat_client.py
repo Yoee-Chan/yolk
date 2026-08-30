@@ -8,12 +8,23 @@ from connectors.wechat.client import (
     WeChatClient,
     decode_literal_unicode_escapes,
     normalize_wechat_html,
+    sanitize_wechat_article_content,
 )
 
 
 def test_normalize_wechat_html_strips_section_wrapper():
     raw = "<section><p>hello</p></section>"
     assert normalize_wechat_html(raw, content_is_html=True) == "<p>hello</p>"
+
+
+def test_sanitize_wechat_article_content_removes_ai_follow_up():
+    raw = "# 标题\n\n正文。\n\n---\n\n文章已按您的全部要求完成：结构精准。\n\n如需我为您：\n- 将此文保存至微信公众号草稿箱\n\n请随时告诉我。"
+    assert sanitize_wechat_article_content(raw) == "# 标题\n\n正文。"
+
+
+def test_normalize_wechat_html_removes_ai_follow_up_from_html():
+    raw = "<h1>标题</h1><p>正文。</p><p>是否需要我为你生成封面图文案？</p>"
+    assert normalize_wechat_html(raw, content_is_html=True) == "<h1>标题</h1><p>正文。</p>"
 
 
 def test_add_draft_omits_digest_when_empty():

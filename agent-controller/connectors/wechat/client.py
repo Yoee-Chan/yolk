@@ -50,9 +50,70 @@ def sanitize_wechat_text(text: str) -> str:
     return decode_literal_unicode_escapes((text or "").strip())
 
 
+_ARTICLE_FOLLOW_UP_MARKERS = (
+    "文章已按您的全部要求完成",
+    "文章已按要求完成",
+    "如需我为您",
+    "如果需要我为您",
+    "如需下一步操作",
+    "如果需要下一步操作",
+    "如需我继续",
+    "如果需要我继续",
+    "需要我为你生成",
+    "需要我为您生成",
+    "是否需要我为你",
+    "是否需要我为您",
+    "请告诉我是否需要",
+    "请随时吩咐",
+    "还有其他问题",
+    "封面图建议",
+    "保存至草稿箱",
+    "直接发布",
+    "需要你确认",
+    "进行其他操作",
+    "其他操作",
+    "生成配图建议",
+    "导出为 Markdown",
+    "文章创作完成",
+)
+
+
+def sanitize_wechat_article_content(content: str) -> str:
+    """移除 AI 面向操作者的收尾反问，避免其进入公众号正文。"""
+    raw = sanitize_wechat_text(content)
+    if not raw:
+        return ""
+    raw = re.sub(r"<tool_code>[\s\S]*?</tool_code>", "", raw, flags=re.I)
+    raw = re.sub(r"<tool_code>[\s\S]*$", "", raw, flags=re.I)
+    raw = re.sub(r"</?tool_code>", "", raw, flags=re.I)
+
+    marker_pattern = "|".join(re.escape(marker) for marker in _ARTICLE_FOLLOW_UP_MARKERS)
+    marker_match = re.search(marker_pattern, re.sub(r"[`*_>#\s]", "", raw))
+    if marker_match and re.search(r"<[a-z][\s\S]*>", raw, re.I):
+        marker_index = marker_match.start()
+        previous_close = raw.rfind("</", 0, marker_index)
+        if previous_close >= 0:
+            close_end = raw.find(">", previous_close)
+            return raw[:close_end + 1].strip() if close_end >= 0 else raw[:previous_close].strip()
+
+    lines = raw.splitlines()
+    cut_at: Optional[int] = None
+    for index, line in enumerate(lines):
+        compact = re.sub(r"[`*_>#\s]", "", line)
+        if any(marker in compact for marker in _ARTICLE_FOLLOW_UP_MARKERS):
+            cut_at = index
+            break
+    if cut_at is not None:
+        lines = lines[:cut_at]
+        while lines and (not lines[-1].strip() or re.fullmatch(r"[-*_]{3,}", lines[-1].strip())):
+            lines.pop()
+
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
 def normalize_wechat_html(content: str, *, content_is_html: bool = False) -> str:
     """将正文规范为微信公众号草稿可接受的 HTML。"""
-    raw = (content or "").strip()
+    raw = sanitize_wechat_article_content(content)
     if not raw:
         return "<p></p>"
     if content_is_html or re.search(r"<[a-z][\s\S]*>", raw, re.I):
