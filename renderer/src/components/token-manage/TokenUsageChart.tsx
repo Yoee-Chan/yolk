@@ -1,16 +1,12 @@
 import React, {useMemo, useState} from 'react';
 import {Card, Segmented, Statistic, Typography} from 'antd';
 import {LineChartOutlined} from '@ant-design/icons';
-import {
-    UsagePeriod,
-    formatTokens,
-    getUsageSeries,
-} from './mockData';
+import {formatTokens, getUsageSeries} from './mockData';
+import type {UsagePeriod} from './mockData';
 
 const {Text} = Typography;
-const Box = ('di' + 'v') as keyof JSX.IntrinsicElements;
 
-const PERIOD_OPTIONS = [
+const PERIOD_OPTIONS: Array<{label: string; value: UsagePeriod}> = [
     {label: '按天', value: 'day'},
     {label: '按周', value: 'week'},
     {label: '按月', value: 'month'},
@@ -64,8 +60,8 @@ export default function TokenUsageChart() {
     const series = useMemo(() => getUsageSeries(period), [period]);
     const maxVal = Math.max(...series.map((p) => p.value), 1);
     const total = series.reduce((s, p) => s + p.value, 0);
-    const avg = Math.round(total / series.length);
-    const peak = Math.max(...series.map((p) => p.value));
+    const avg = series.length ? Math.round(total / series.length) : 0;
+    const peak = series.length ? Math.max(...series.map((p) => p.value)) : 0;
 
     const values = series.map((p) => p.value);
     const linePath = buildLinePath(values, maxVal, CHART_W, CHART_H);
@@ -98,15 +94,15 @@ export default function TokenUsageChart() {
             }
             className="token-manage__section"
         >
-            <Box className="usage-chart__toolbar">
+            <div className="usage-chart__toolbar">
                 <Segmented
                     options={PERIOD_OPTIONS}
                     value={period}
-                    onChange={(v) => setPeriod(v as UsagePeriod)}
+                    onChange={setPeriod}
                 />
                 <Text type="secondary">{periodHint}</Text>
-            </Box>
-            <Box className="usage-chart__plot">
+            </div>
+            <div className="usage-chart__plot">
                 <svg
                     className="usage-chart__svg"
                     viewBox={`0 0 ${CHART_W} ${CHART_H + 24}`}
@@ -167,12 +163,12 @@ export default function TokenUsageChart() {
                         );
                     })}
                 </svg>
-            </Box>
-            <Box className="usage-chart__summary">
+            </div>
+            <div className="usage-chart__summary">
                 <Statistic title={'合计消耗'} value={formatTokens(total)} suffix={TOKEN_UNIT}/>
                 <Statistic title={'日均 / 均值'} value={formatTokens(avg)} suffix={TOKEN_UNIT}/>
                 <Statistic title={'峰值'} value={formatTokens(peak)} suffix={TOKEN_UNIT}/>
-            </Box>
+            </div>
         </Card>
     );
 }

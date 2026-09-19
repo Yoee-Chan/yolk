@@ -118,7 +118,7 @@ def _apply_run_env(payload: dict) -> None:
 
 
 def read_run_request() -> Optional[Tuple[str, list, dict]]:
-    """从路由队列取一条 run 事件。stdin 关闭时返回 None。"""
+    """从路由队列取一条请求。stdin 关闭时返回 None。"""
     payload = _RUN_QUEUE.get()
     if payload is None:
         return None
@@ -128,6 +128,22 @@ def read_run_request() -> Optional[Tuple[str, list, dict]]:
     if not isinstance(history, list):
         history = []
     return user_task, history, payload
+
+
+async def _handle_annotation(payload: dict) -> None:
+    """批注只走一次直接 LLM 调用，绕过规划、权限确认和 Agent 工具链。"""
+    llm = LLM()
+    result = await llm.ask(
+        [Message.user_message(str(payload.get("msg") or ""))],
+        system_msgs=[Message.system_message(
+            "你是文章改写器。只返回可以直接替换选中文本的最终内容。"
+            "禁止解释、前缀、引号、Markdown 代码块、系统消息、工具调用或执行计划。"
+        )],
+        stream=False,
+        temperature=0.2,
+    )
+    print(json.dumps({"type": "result", "text": (result or "").strip()}, ensure_ascii=False))
+    sys.stdout.flush()
 
 
 async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
@@ -459,6 +475,9 @@ if __name__ == "__main__":
             if req is None:
                 break
             user_task, history, run_meta = req
-            loop.run_until_complete(main(user_task, history, run_meta))
+            if run_meta.get("mode") == "annotation":
+                loop.run_until_complete(_handle_annotation(run_meta))
+            else:
+                loop.run_until_complete(main(user_task, history, run_meta))
     finally:
         loop.close()
