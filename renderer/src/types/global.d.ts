@@ -28,8 +28,17 @@ declare global {
             onPythonInputEcho?: (callback: (data: string) => void) => void;
 
             selectFolder: () => Promise<string | null>;
+            importWechatDocx: () => Promise<{fileName: string; html: string} | null>;
             loadWechatArticle: () => Promise<WechatArticleDraft | null>;
             saveWechatArticle: (article: WechatArticleDraft) => Promise<boolean>;
+            annotateWechatArticle: (request: {
+                selectedText: string;
+                annotation: string;
+                articleTitle?: string;
+                articleContent?: string;
+                authToken?: string;
+                apiUrl?: string;
+            }) => Promise<{replacement: string}>;
             llmSetting: (Param: string) => Promise<string>;
             jiraOAuthLogin: (options?: {
                 default_project_key?: string;

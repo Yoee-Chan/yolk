@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ipcMain, dialog, WebContents, session, Menu} from 'electron'
+﻿import {app, BrowserWindow, ipcMain, dialog, WebContents, session, Menu} from 'electron'
 import path from 'path'
 import {promises as fs} from 'fs'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
@@ -16,6 +16,57 @@ type WechatArticleDraft = {
     content: string
     outlineTree: unknown[]
     updatedAt: string
+}
+
+type AnnotationRequest = {selectedText: string; annotation: string; articleTitle?: string; articleContent?: string}
+
+type AnnotationConfig = {baseUrl: string; apiKey: string; model: string}
+
+async function getAnnotationConfig(): Promise<AnnotationConfig> {
+    const configPath = path.join(process.cwd(), 'local-llm-engine', 'config', 'config.toml')
+    const source = await fs.readFile(configPath, 'utf8')
+    const llmSection = source.split(/^\[llm\]\s*$/m)[1]?.split(/^\[/m)[0] ?? source
+    const read = (key: string, fallback = '') => {
+        const match = llmSection.match(new RegExp(`^\\s*${key}\\s*=\\s*["']([^"']*)["']`, 'm'))
+        return match?.[1]?.trim() || fallback
+    }
+    const baseUrl = read('base_url')
+    const apiKey = read('api_key')
+    const model = read('model', 'qwen-plus')
+    if (!baseUrl || !apiKey) throw new Error('批注模型配置不完整，请检查 local-llm-engine/config/config.toml')
+    return {baseUrl: baseUrl.replace(/\/$/, ''), apiKey, model}
+}
+
+async function callAnnotationDirect(request: AnnotationRequest): Promise<string> {
+    const config = await getAnnotationConfig()
+    const prompt = [
+        '请根据用户批注改写选中的原文。',
+        '只输出最终替换文本；禁止输出解释、前缀、引号、Markdown、系统消息、权限提示、执行计划或工具调用。',
+        `文章标题：${request.articleTitle || ''}`,
+        `文章上下文：${request.articleContent || ''}`,
+        `选中的原文：${request.selectedText}`,
+        `用户批注：${request.annotation}`,
+    ].join('\\n\\n')
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}`},
+        body: JSON.stringify({
+            model: config.model,
+            messages: [
+                {role: 'system', content: '你是一个只负责返回文本替换结果的中文编辑器。'},
+                {role: 'user', content: prompt},
+            ],
+            temperature: 0.2,
+            max_tokens: 2048,
+            stream: false,
+        }),
+        signal: AbortSignal.timeout(60_000),
+    })
+    const payload = await response.json() as {choices?: Array<{message?: {content?: string}}>; error?: {message?: string}}
+    if (!response.ok) throw new Error(payload.error?.message || `批注模型请求失败（${response.status}）`)
+    const replacement = payload.choices?.[0]?.message?.content?.trim() || ''
+    if (!replacement) throw new Error('批注模型没有返回替换内容')
+    return replacement
 }
 
 async function getConfiguredWorkspaceRoot(): Promise<string> {
@@ -316,6 +367,11 @@ app.whenReady().then(() => {
         } catch {
             return null
         }
+    })
+
+    ipcMain.handle('annotate-wechat-article', async (_event, request: AnnotationRequest) => {
+        if (!request?.selectedText?.trim() || !request?.annotation?.trim()) throw new Error('选中文本和批注不能为空')
+        return {replacement: await callAnnotationDirect(request)}
     })
 
     ipcMain.handle('save-wechat-article', async (_event, article: WechatArticleDraft) => {

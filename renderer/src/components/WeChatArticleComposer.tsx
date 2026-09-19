@@ -1,225 +1,19 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ArrowLeftOutlined, BoldOutlined, CheckOutlined, CopyOutlined, FileTextOutlined, FontColorsOutlined, FontSizeOutlined, PictureOutlined, ReloadOutlined, RobotOutlined, SearchOutlined, SendOutlined, UnderlineOutlined, UploadOutlined} from '@ant-design/icons';
-import {Input, message, Modal, Select, Tabs} from 'antd';
+import {ArrowLeftOutlined, CheckOutlined, CopyOutlined, FileTextOutlined, UploadOutlined} from '@ant-design/icons';
+import {message} from 'antd';
+import {AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun} from 'docx';
 import {getStoredToken} from '../api/cloudApi';
+import ArticleEditor from './wechat-article/ArticleEditor';
+import ArticlePreview from './wechat-article/ArticlePreview';
+import ArticleSidebar from './wechat-article/ArticleSidebar';
+import ImageInsertModal from './wechat-article/ImageInsertModal';
+import {cleanArticleContent, extractText, htmlToMarkdown, isRichArticleContent, markdownToHtml, outlineFromHtml, outlineToMarkdown, removeImportedNoise, updateOutlineNodes} from './wechat-article/articleUtils';
+import type {AnnotationMenuPosition, OutlineNode} from './wechat-article/types';
 import '../css/WeChatArticleComposer.css';
-
-type StreamPayload = {type?: string; text?: string};
-
-const EDITOR_TEXT_COLORS = [
-    '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef',
-    '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff',
-    '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#cfe2f3', '#d9d2e9',
-    '#cc0000', '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6d9eeb', '#6fa8dc', '#8e7cc3',
-    '#660000', '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#1155cc', '#0b5394', '#351c75',
-];
-
-const ARTICLE_FOLLOW_UP_MARKERS = [
-    '文章已按您的全部要求完成',
-    '文章已按要求完成',
-    '如需我为您',
-    '如果需要我为您',
-    '如需下一步操作',
-    '如果需要下一步操作',
-    '如需我继续',
-    '如果需要我继续',
-    '需要我为你生成',
-    '需要我为您生成',
-    '是否需要我为你',
-    '是否需要我为您',
-    '请告诉我是否需要',
-    '请随时吩咐',
-    '还有其他问题',
-    '封面图建议',
-    '保存至草稿箱',
-    '直接发布',
-    '需要你确认',
-    '进行其他操作',
-    '其他操作',
-    '生成配图建议',
-    '导出为 Markdown',
-    '文章创作完成',
-];
-
-function stripToolOutput(value: string): string {
-    return value
-        .replace(/<tool_code>[\s\S]*?<\/tool_code>/gi, '')
-        .replace(/<tool_code>[\s\S]*$/gi, '')
-        .replace(/<\/tool_code>/gi, '')
-        .replace(/```(?:json|xml)?\s*\{\s*"name"\s*:\s*"(?:str_replace_editor|bash|browser|python_execute)"[\s\S]*?```/gi, '')
-        .replace(/\{\s*"name"\s*:\s*"(?:str_replace_editor|bash|browser|python_execute)"[\s\S]*$/gi, '');
-}
-
-function cleanArticleContent(markdown: string): string {
-    const lines = stripToolOutput(markdown)
-        .replace(/```(?:markdown|md)?/gi, '')
-        .replace(/```/g, '')
-        .split(/\r?\n/)
-        .filter((line) => !/^\s*\[(?:系统|system)\]/i.test(line));
-    const firstHeading = lines.findIndex((line) => /^\s*#\s+\S/.test(line));
-    const articleLines = firstHeading >= 0 ? lines.slice(firstHeading) : lines;
-    const followUpIndex = articleLines.findIndex((line) => {
-        const compact = line.replace(/[\\`*_>#\s]/g, '');
-        return ARTICLE_FOLLOW_UP_MARKERS.some((marker) => compact.includes(marker));
-    });
-    return (followUpIndex >= 0 ? articleLines.slice(0, followUpIndex) : articleLines)
-        .join('\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-}
-
-function escapeHtml(value: string): string {
-    return value.replace(/[&<>\"]/g, (character) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;'}[character] ?? character));
-}
-
-function markdownToHtml(markdown: string): string {
-    const html = cleanArticleContent(markdown)
-        .split(/\r?\n/)
-        .map((line) => {
-            if (/^###\s+/.test(line)) return `<h3>${escapeHtml(line.replace(/^###\s+/, '').replace(/\s+#+$/, ''))}</h3>`;
-            if (/^##\s+/.test(line)) return `<h2>${escapeHtml(line.replace(/^##\s+/, '').replace(/\s+#+$/, ''))}</h2>`;
-            if (/^#\s+/.test(line)) return `<h1>${escapeHtml(line.replace(/^#\s+/, '').replace(/\s+#+$/, ''))}</h1>`;
-            const image = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-            if (image) return `<figure><img src="${escapeHtml(image[2])}" alt="${escapeHtml(image[1] || '文章配图')}" /><figcaption>${escapeHtml(image[1])}</figcaption></figure>`;
-            if (/^[-*]\s+/.test(line)) return `<li>${escapeHtml(line.replace(/^[-*]\s+/, ''))}</li>`;
-            return line ? `<p>${escapeHtml(line).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')}</p>` : '';
-        })
-        .join('');
-    return html.replace(/(<li>.*?<\/li>)+/gs, (list) => `<ul>${list}</ul>`);
-}
-
-function htmlToMarkdown(html: string): string {
-    const root = document.createElement('div');
-    root.innerHTML = html;
-    const inline = (node: Node): string => Array.from(node.childNodes).map((child) => {
-        if (child.nodeType === Node.TEXT_NODE) return child.textContent ?? '';
-        if (child.nodeType !== Node.ELEMENT_NODE) return '';
-        const element = child as HTMLElement;
-        const text = inline(element);
-        if (element.tagName === 'STRONG' || element.tagName === 'B') return `**${text}**`;
-        if (element.tagName === 'BR') return '\n';
-        if (element.tagName === 'A') return `[${text}](${element.getAttribute('href') ?? ''})`;
-        return text;
-    }).join('');
-    const blocks = Array.from(root.children).map((element) => {
-        const node = element as HTMLElement;
-        if (/^H[1-6]$/.test(node.tagName)) return `${'#'.repeat(Number(node.tagName.slice(1)))} ${inline(node).trim()}`;
-        if (node.tagName === 'UL' || node.tagName === 'OL') {
-            return Array.from(node.children).map((item) => `- ${inline(item).trim()}`).join('\n');
-        }
-        if (node.tagName === 'FIGURE') {
-            const image = node.querySelector('img');
-            if (!image) return '';
-            return `![${image.alt || '文章配图'}](${image.getAttribute('src') || ''})`;
-        }
-        return inline(node).trim();
-    });
-    return blocks.filter(Boolean).join('\n\n').trim();
-}
-
-function isRichArticleContent(content: string): boolean {
-    return /<\/?(?:h[1-6]|p|ul|ol|li|strong|b|u|span|font|figure|img|div|br)\b/i.test(content);
-}
-
-function extractText(line: string): string | null {
-    try {
-        const payload = JSON.parse(line) as StreamPayload;
-        if (payload.type === 'stream' && typeof payload.text === 'string') {
-            return payload.text;
-        }
-        if (payload.type === 'result' && typeof payload.text === 'string') {
-            return payload.text;
-        }
-        if (payload.type === 'error' && typeof payload.text === 'string') {
-            throw new Error(payload.text);
-        }
-    } catch (error) {
-        if (error instanceof SyntaxError) {
-            return null;
-        }
-        throw error;
-    }
-    return null;
-}
 
 type WeChatArticleComposerProps = {
     onBack: () => void;
 };
-
-type OutlineNode = {
-    id: string;
-    level: number;
-    text: string;
-    children: OutlineNode[];
-};
-
-function outlineToMarkdown(nodes: OutlineNode[]): string {
-    return nodes
-        .flatMap((node) => [`${'#'.repeat(node.level + 1)} ${node.text.trim()}`, outlineToMarkdown(node.children)])
-        .filter(Boolean)
-        .join('\n');
-}
-
-function updateOutlineNodes(
-    nodes: OutlineNode[],
-    id: string,
-    updater: (node: OutlineNode) => OutlineNode | null
-): OutlineNode[] {
-    return nodes.flatMap((node) => {
-        if (node.id === id) {
-            const next = updater(node);
-            return next ? [next] : [];
-        }
-        return [{...node, children: updateOutlineNodes(node.children, id, updater)}];
-    });
-}
-
-function parseOutline(markdown: string): OutlineNode[] {
-    const roots: OutlineNode[] = [];
-    const stack: OutlineNode[] = [];
-    markdown.split(/\r?\n/).forEach((line, index) => {
-        const match = line.match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
-        if (!match) return;
-        const node: OutlineNode = {id: `${index}-${match[1].length}`, level: match[1].length, text: match[2], children: []};
-        while (stack.length && stack[stack.length - 1].level >= node.level) stack.pop();
-        if (stack.length) stack[stack.length - 1].children.push(node);
-        else roots.push(node);
-        stack.push(node);
-    });
-    return roots;
-}
-
-function renderOutline(
-    nodes: OutlineNode[],
-    onChange: (id: string, text: string) => void,
-    onAdd: (parentId: string | null, level: number) => void,
-    onRemove: (id: string) => void
-): React.ReactNode {
-    return nodes.map((node) => (
-        <li key={node.id} className={`wechat-flow__item wechat-flow__item--h${node.level + 1}`}>
-            <div className="wechat-flow__card">
-                <span className="wechat-outline__marker">H{node.level + 1}</span>
-                <input
-                    value={node.text}
-                    onChange={(event) => onChange(node.id, event.target.value)}
-                    placeholder="输入标题"
-                    aria-label={`H${node.level + 1} 标题`}
-                />
-                {node.level < 3 ? (
-                    <button type="button" className="wechat-flow__add" onClick={() => onAdd(node.id, node.level + 1)}>
-                        + H{node.level + 2}
-                    </button>
-                ) : null}
-                <button type="button" className="wechat-flow__remove" onClick={() => onRemove(node.id)} aria-label="删除标题">×</button>
-            </div>
-            {node.children.length ? (
-                <div className="wechat-flow__children">
-                    {renderOutline(node.children, onChange, onAdd, onRemove)}
-                </div>
-            ) : null}
-        </li>
-    ));
-}
 
 export default function WeChatArticleComposer({onBack}: WeChatArticleComposerProps) {
     const [title, setTitle] = useState('');
@@ -228,9 +22,8 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const [content, setContent] = useState('');
     const [editingContent, setEditingContent] = useState(false);
     const [generating, setGenerating] = useState(false);
-    const [leftWidth, setLeftWidth] = useState(360);
+    const [leftWidth, setLeftWidth] = useState(264);
     const [isDragging, setIsDragging] = useState(false);
-    const [flowHeight, setFlowHeight] = useState(320);
     const [fontSize, setFontSize] = useState(14);
     const [fontFamily, setFontFamily] = useState("'Microsoft YaHei', sans-serif");
     const [textColor, setTextColor] = useState('#293548');
@@ -246,9 +39,14 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const [imageTab, setImageTab] = useState('search');
     const [imagePrompt, setImagePrompt] = useState('');
     const [imageLoading, setImageLoading] = useState(false);
+    const [annotation, setAnnotation] = useState('');
+    const [selectedText, setSelectedText] = useState('');
+    const [annotationMenu, setAnnotationMenu] = useState<AnnotationMenuPosition | null>(null);
+    const [annotationLoading, setAnnotationLoading] = useState(false);
     const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
     const [saving, setSaving] = useState(false);
     const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+    const [importing, setImporting] = useState(false);
     const draftStateRef = useRef({title: '', subtitle: '', content: '', outlineTree: [] as OutlineNode[]});
     const carryRef = useRef('');
     const workspaceRef = useRef<HTMLDivElement>(null);
@@ -279,7 +77,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         if (!draft.content.trim() && !draft.title.trim() && !draft.subtitle.trim() && !draft.outlineTree.length) return;
         setSaving(true);
         try {
-            await window.api.saveWechatArticle(draft);
+            await window.api.saveWechatArticle({...draft, updatedAt: new Date().toISOString()});
             const savedAt = new Date().toISOString();
             setLastSavedAt(savedAt);
             if (showMessage) message.success('文章已保存到 workspace/微信公众号');
@@ -350,6 +148,32 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     };
 
 
+
+    const importWordDocument = async () => {
+        setImporting(true);
+        try {
+            const imported = await window.api.importWechatDocx();
+            if (!imported) return;
+            const root = document.createElement('div');
+            root.innerHTML = imported.html;
+            const firstHeading = root.querySelector('h1, h2, h3');
+            const importedTitle = firstHeading?.textContent?.trim() || imported.fileName.replace(/\.docx$/i, '');
+            if (firstHeading?.tagName === 'H1') firstHeading.remove();
+            const html = removeImportedNoise(root.innerHTML);
+            setTitle(importedTitle);
+            setSubtitle('');
+            setOutlineTree(outlineFromHtml(html));
+            setContent(html);
+            editorHtmlRef.current = html;
+            setEditorHtml(html);
+            setEditingContent(true);
+            message.success(`已导入 Word 文档：${imported.fileName}`);
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : 'Word 文档导入失败');
+        } finally {
+            setImporting(false);
+        }
+    };
 
     const createNewArticle = () => {
         setTitle('');
@@ -456,6 +280,69 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
             editor.contains(range.endContainer)
         ) {
             selectionRangeRef.current = range.cloneRange();
+            setSelectedText(selection.toString());
+        }
+    };
+
+    const openAnnotationMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+        rememberEditorSelection();
+        const selection = window.getSelection();
+        const text = selection?.toString().trim() ?? '';
+        if (!text || !selectionRangeRef.current) {
+            setAnnotationMenu(null);
+            return;
+        }
+        event.preventDefault();
+        setSelectedText(text);
+        setAnnotationMenu({x: event.clientX, y: event.clientY});
+    };
+
+    const replaceSelectedText = (replacement: string) => {
+        const editor = editorRef.current;
+        const range = selectionRangeRef.current;
+        if (!editor || !range || !replacement.trim()) return false;
+        editor.focus();
+        range.deleteContents();
+        range.insertNode(document.createTextNode(replacement.trim()));
+        syncEditorHtml(editor.innerHTML);
+        selectionRangeRef.current = null;
+        setSelectedText('');
+        setAnnotationMenu(null);
+        return true;
+    };
+
+    const annotateSelectedText = async () => {
+        const selected = selectedText.trim();
+        const instruction = annotation.trim();
+        if (!selected || !instruction) {
+            message.warning('请先选中文本并填写批注');
+            return;
+        }
+        setAnnotationLoading(true);
+        try {
+            const result = await window.api.annotateWechatArticle({
+                selectedText: selected,
+                annotation: instruction,
+                articleTitle: title.trim(),
+                articleContent: htmlToMarkdown(editorRef.current?.innerHTML ?? content),
+                authToken: getStoredToken() ?? undefined,
+                apiUrl: import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080',
+            });
+            const replacement = result.replacement
+                .replace(/^```(?:text|markdown)?\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .replace(/^\s*(?:替换文本|修改后文本|最终文本)\s*[:：]\s*/i, '')
+                .trim();
+            if (!replacement || replacement.includes('[系统]') || replacement.includes('正在评估是否需要权限')) {
+                throw new Error('批注模型返回了无效内容，请重试');
+            }
+            replaceSelectedText(replacement);
+            setAnnotation('');
+            message.success('已根据批注更新选中文本');
+        } catch (error) {
+            message.error(error instanceof Error ? error.message : '批注修改失败');
+        } finally {
+            setAnnotationLoading(false);
         }
     };
 
@@ -464,13 +351,32 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         return () => document.removeEventListener('selectionchange', rememberEditorSelection);
     }, []);
 
-    const applyEditorCommand = (command: string, value?: string) => {
+    const applyEditorCommand = (command: 'bold' | 'underline' | 'fontName' | 'foreColor', value?: string) => {
         const editor = editorRef.current;
-        if (!editor) return;
+        const range = selectionRangeRef.current;
+        if (!editor || !range || range.collapsed || !editor.contains(range.commonAncestorContainer)) {
+            message.info('请先在文章中选中需要调整格式的文字');
+            return;
+        }
+
         editor.focus();
         restoreEditorSelection();
-        document.execCommand(command, false, value);
-        rememberEditorSelection();
+        const wrapper = command === 'bold'
+            ? document.createElement('strong')
+            : command === 'underline'
+                ? document.createElement('u')
+                : document.createElement('span');
+        if (command === 'fontName') wrapper.style.fontFamily = value ?? fontFamily;
+        if (command === 'foreColor') wrapper.style.color = value ?? textColor;
+        wrapper.appendChild(range.extractContents());
+        range.insertNode(wrapper);
+
+        const selectedRange = document.createRange();
+        selectedRange.selectNodeContents(wrapper);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(selectedRange);
+        selectionRangeRef.current = selectedRange.cloneRange();
         syncEditorHtml(editor.innerHTML);
     };
 
@@ -596,11 +502,68 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         setEditorHtml(html);
     }, [content, editingContent]);
 
+    const exportDocx = async () => {
+        const source = isRichArticleContent(content) ? content : markdownToHtml(content);
+        const root = document.createElement('div');
+        root.innerHTML = source;
+        const paragraphs: Paragraph[] = [];
+        const addInline = (node: Node, formatting: {bold?: boolean; underline?: boolean} = {}): TextRun[] => Array.from(node.childNodes).flatMap((child) => {
+            if (child.nodeType === Node.TEXT_NODE) {
+                return [new TextRun({
+                    text: child.textContent ?? '',
+                    font: 'Microsoft YaHei',
+                    size: 28,
+                    bold: formatting.bold,
+                    underline: formatting.underline ? {} : undefined,
+                })];
+            }
+            if (child.nodeType !== Node.ELEMENT_NODE) return [];
+            const element = child as HTMLElement;
+            return addInline(element, {
+                bold: formatting.bold || element.tagName === 'STRONG' || element.tagName === 'B',
+                underline: formatting.underline || element.tagName === 'U',
+            });
+        });
+        Array.from(root.children).forEach((element) => {
+            const node = element as HTMLElement;
+            const text = node.textContent?.trim() ?? '';
+            if (!text && node.tagName !== 'IMG') return;
+            const heading = /^H([1-3])$/.test(node.tagName) ? Number(node.tagName.slice(1)) : 0;
+            const runs = addInline(node);
+            paragraphs.push(new Paragraph({
+                children: runs,
+                heading: heading === 1 ? HeadingLevel.HEADING_1 : heading === 2 ? HeadingLevel.HEADING_2 : heading === 3 ? HeadingLevel.HEADING_3 : undefined,
+                alignment: heading === 1 ? AlignmentType.CENTER : undefined,
+                spacing: {line: 360, after: heading ? 240 : 180},
+                style: heading ? undefined : 'Normal',
+            }));
+        });
+        const doc = new Document({styles: {default: {document: {run: {font: 'Microsoft YaHei', size: 28}, paragraph: {spacing: {line: 360}}}}}, sections: [{children: paragraphs}]});
+        const blob = await Packer.toBlob(doc);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${title.trim() || '微信公众号文章'}.docx`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        message.success('Word 兼容 DOCX 已导出');
+    };
+
     const copyContent = async () => {
         if (!content.trim()) return;
         const isRichContent = isRichArticleContent(content);
         const plainText = isRichContent ? htmlToMarkdown(content) : cleanArticleContent(content);
-        const html = `<div style="font-family:Arial,'Microsoft YaHei',sans-serif;line-height:1.9;color:#293548">${isRichContent ? content : markdownToHtml(plainText)}</div>`;
+        const copyRoot = document.createElement('div');
+        copyRoot.innerHTML = isRichContent ? content : markdownToHtml(plainText);
+        copyRoot.style.cssText = "max-width:100%; box-sizing:border-box; font-family:Arial,'Microsoft YaHei',sans-serif; line-height:1.9; color:#293548; overflow-wrap:anywhere; word-break:break-word";
+        copyRoot.querySelectorAll('img').forEach((image) => {
+            image.removeAttribute('width');
+            image.removeAttribute('height');
+            image.style.cssText = 'display:block; width:auto; max-width:100%; height:auto; margin:22px auto;';
+        });
+        copyRoot.querySelectorAll('table').forEach((table) => {
+            table.style.cssText = 'width:100%; max-width:100%; box-sizing:border-box; border-collapse:collapse;';
+        });
+        const html = copyRoot.outerHTML;
         try {
             await navigator.clipboard.write([
                 new ClipboardItem({
@@ -612,26 +575,6 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
             await navigator.clipboard.writeText(plainText);
         }
         message.success('文章已复制，可直接粘贴到公众号编辑器');
-    };
-
-    const renderArticle = (markdown: string) => {
-        const cleaned = cleanArticleContent(markdown);
-        const displayContent = cleaned || markdown.trim();
-        const blocks = displayContent.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
-        return blocks.map((block, index) => {
-            const lines = block.split('\n');
-            const heading = lines[0].match(/^(#{1,3})\s+(.+)$/);
-            if (heading) {
-                const Heading = `h${heading[1].length}` as 'h1' | 'h2' | 'h3';
-                return <Heading key={index}>{heading[2].replace(/\s+#+$/, '')}</Heading>;
-            }
-            if (lines.every((line) => /^[-*]\s+/.test(line))) {
-                return <ul key={index}>{lines.map((line) => <li key={line}>{line.replace(/^[-*]\s+/, '')}</li>)}</ul>;
-            }
-            const image = lines[0].match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-            if (image) return <figure key={index}><img src={image[2]} alt={image[1] || '文章配图'} /><figcaption>{image[1]}</figcaption></figure>;
-            return <p key={index}>{block.split(/(\*\*[^*]+\*\*)/g).map((part, partIndex) => part.startsWith('**') && part.endsWith('**') ? <strong key={partIndex}>{part.slice(2, -2)}</strong> : part)}</p>;
-        });
     };
 
     return (
@@ -647,6 +590,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                 </div>
                 <div className="wechat-composer__header-actions">
                     <button type="button" className="wechat-composer__new" onClick={createNewArticle}><FileTextOutlined/> 新建</button>
+                    <button type="button" className="wechat-composer__new" onClick={() => void importWordDocument()} disabled={importing}><UploadOutlined/> {importing ? '导入中…' : '导入 Word'}</button>
                     <button type="button" className="wechat-composer__save" onClick={() => void saveDraft(true)} disabled={saving}>
                         <CheckOutlined/> {saving ? '保存中…' : '保存'}
                     </button>
@@ -659,46 +603,19 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                 className="wechat-composer__workspace"
                 style={{gridTemplateColumns: `${leftWidth}px 8px minmax(360px, 1fr)`}}
             >
-                <div className="wechat-composer__form">
-                    <label htmlFor="article-title">文章标题</label>
-                    <input
-                        id="article-title"
-                        value={title}
-                        onChange={(event) => setTitle(event.target.value)}
-                        onKeyDown={(event) => event.key === 'Enter' && generate()}
-                        placeholder="例如：真正拉开人与人差距的，是这 3 种能力"
-                        maxLength={80}
-                    />
-                    <div className="wechat-composer__hint">
-                        <span>输入一个清晰、有吸引力的标题</span>
-                        <span>{title.length}/80</span>
-                    </div>
-                    <label htmlFor="article-subtitle">文章副标题 <span>可选</span></label>
-                    <input
-                        id="article-subtitle"
-                        value={subtitle}
-                        onChange={(event) => setSubtitle(event.target.value)}
-                        placeholder="用一句话说明文章核心观点"
-                        maxLength={100}
-                    />
-                    <div className="wechat-composer__outline-heading">
-                        <label htmlFor="article-outline">文章脉络</label>
-                        <span>流程图目录</span>
-                    </div>
-                    <div className="wechat-flow" aria-label="文章脉络流程图" style={{maxHeight: `${flowHeight}px`}}>
-                        <div className="wechat-flow__hint">点击节点后的按钮，逐级搭建文章结构，最多支持 H4（文章标题为 H1）。</div>
-                        <div className="wechat-flow__roots">
-                            {outlineTree.length ? renderOutline(outlineTree, updateOutlineText, addOutlineNode, removeOutlineNode) : null}
-                        </div>
-                        <button type="button" className="wechat-flow__start" onClick={() => addOutlineNode(null, 1)}>
-                            {outlineTree.length ? '+ 创建另一个 H2 二级标题' : '+ 创建 H2 二级标题'}
-                        </button>
-                    </div>
-                    <button type="button" className="wechat-composer__generate" onClick={generate}>
-                        {generating ? <ReloadOutlined spin/> : <SendOutlined/>}
-                        {generating ? '停止生成' : content ? '重新生成' : 'AI 补全文章'}
-                    </button>
-                </div>
+                <ArticleSidebar
+                    title={title}
+                    subtitle={subtitle}
+                    outlineTree={outlineTree}
+                    generating={generating}
+                    hasContent={Boolean(content)}
+                    onTitleChange={setTitle}
+                    onSubtitleChange={setSubtitle}
+                    onOutlineChange={updateOutlineText}
+                    onOutlineAdd={addOutlineNode}
+                    onOutlineRemove={removeOutlineNode}
+                    onGenerate={generate}
+                />
                 <div
                     className={isDragging ? 'wechat-composer__splitter wechat-composer__splitter--dragging' : 'wechat-composer__splitter'}
                     role="separator"
@@ -714,109 +631,75 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                         {content ? (
                             <div className="wechat-article__actions">
                                 <button type="button" onClick={() => { const nextEditing = !editingContent; if (nextEditing) editorHtmlRef.current = ''; setEditingContent(nextEditing); }}>{editingContent ? '完成编辑' : '编辑文章'}</button>
+                                <button type="button" onClick={exportDocx}><FileTextOutlined/> 导出 Word</button>
                                 <button type="button" onClick={copyContent}><CopyOutlined/> 复制全文</button>
                             </div>
                         ) : null}
                     </div>
                     <div className="wechat-article__canvas">
-                        {content ? editingContent ? (
-                            <div className="wechat-editor">
-                                <div className="wechat-editor__toolbar" role="toolbar" aria-label="文章格式工具栏" onMouseDownCapture={rememberEditorSelection}>
-                                    <button type="button" className={boldMode ? 'is-active' : ''} onClick={toggleBold} title="加粗"><BoldOutlined/> 加粗</button>
-                                    <button type="button" onClick={toggleUnderline} title="下划线"><UnderlineOutlined/> 下划线</button>
-                                    <label><FontSizeOutlined/> 字号 <Select size="small" value={fontSize} onMouseDown={(event) => event.preventDefault()} onChange={changeEditorFontSize} options={[12, 14, 16, 18, 20, 24, 28, 32].map((value) => ({value, label: `${value}px`}))}/></label>
-                                    <label>字体 <Select size="small" value={fontFamily} onChange={changeEditorFontFamily} options={[
-                                        {value: "'Microsoft YaHei', sans-serif", label: '微软雅黑'},
-                                        {value: "SimSun, serif", label: '宋体'},
-                                        {value: "KaiTi, serif", label: '楷体'},
-                                        {value: "FangSong, serif", label: '仿宋'},
-                                        {value: "Arial, sans-serif", label: 'Arial'},
-                                    ]}/></label>
-                                    <div className="wechat-editor__color">
-                                        <button
-                                            type="button"
-                                            className={isColorPaletteOpen ? 'is-active' : ''}
-                                            onClick={() => setIsColorPaletteOpen((open) => !open)}
-                                            aria-expanded={isColorPaletteOpen}
-                                            aria-controls="wechat-editor-color-palette"
-                                        >
-                                            <FontColorsOutlined/> 颜色
-                                            <span className="wechat-editor__color-preview" style={{backgroundColor: textColor}}/>
-                                        </button>
-                                        {isColorPaletteOpen ? (
-                                            <div id="wechat-editor-color-palette" className="wechat-editor__color-popover" role="dialog" aria-label="选择文字颜色">
-                                                <div className="wechat-editor__color-swatches" role="group" aria-label="预设文字颜色">
-                                                    {EDITOR_TEXT_COLORS.map((color) => (
-                                                        <button
-                                                            key={color}
-                                                            type="button"
-                                                            className={textColor.toLowerCase() === color ? 'is-selected' : ''}
-                                                            style={{backgroundColor: color}}
-                                                            onClick={() => { changeEditorTextColor(color); setIsColorPaletteOpen(false); }}
-                                                            aria-label={`选择颜色 ${color}`}
-                                                            aria-pressed={textColor.toLowerCase() === color}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <div className="wechat-editor__custom-colors">
-                                                    <label>HEX<input value={customHexColor} onChange={(event) => setCustomHexColor(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && applyCustomHexColor()} placeholder="#293548"/></label>
-                                                    <button type="button" onClick={applyCustomHexColor}>应用</button>
-                                                    <label>RGB<input value={customRgbColor} onChange={(event) => setCustomRgbColor(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && applyCustomRgbColor()} placeholder="41, 53, 72"/></label>
-                                                    <button type="button" onClick={applyCustomRgbColor}>应用</button>
-                                                </div>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                    <button type="button" onClick={() => setImageModalOpen(true)}><PictureOutlined/> 插入图片</button>
-                                </div>
-                                <div
-                                    ref={editorRef}
-                                    onFocus={() => {
-                                        if (!editorHtmlRef.current) {
-                                            const html = markdownToHtml(content);
-                                            editorHtmlRef.current = html;
-                                            setEditorHtml(html);
-                                        }
-                                    }}
-                                    className="wechat-editor__surface"
-                                    contentEditable
-                                    suppressContentEditableWarning
-                                    role="textbox"
-                                    aria-label="编辑公众号文章正文"
-                                    style={{fontFamily}}
-                                    dangerouslySetInnerHTML={{__html: editorHtml}}
-                                    onMouseUp={rememberEditorSelection}
-                                    onKeyUp={rememberEditorSelection}
-                                    onSelect={rememberEditorSelection}
-                                    onInput={(event) => { rememberEditorSelection(); syncEditorHtml(event.currentTarget.innerHTML); }}
-                                />
-                                <div className="wechat-editor__hint">像 Word 一样直接编辑：选中文本后点击「加粗」或调整字号，效果会即时显示。</div>
-                            </div>
-                        ) : (
-                            <div
-                                className="wechat-article__formatted"
-                                aria-label="公众号文章正文预览"
-                                {...(isRichArticleContent(content)
-                                    ? {dangerouslySetInnerHTML: {__html: content}}
-                                    : {children: renderArticle(content)})}
+                        {content && editingContent ? (
+                            <ArticleEditor
+                                editorRef={editorRef}
+                                editorHtml={editorHtml}
+                                fontSize={fontSize}
+                                fontFamily={fontFamily}
+                                textColor={textColor}
+                                boldMode={boldMode}
+                                colorPaletteOpen={isColorPaletteOpen}
+                                customHexColor={customHexColor}
+                                customRgbColor={customRgbColor}
+                                annotation={annotation}
+                                selectedText={selectedText}
+                                annotationMenu={annotationMenu}
+                                annotationLoading={annotationLoading}
+                                onRememberSelection={rememberEditorSelection}
+                                onFocus={() => {
+                                    if (!editorHtmlRef.current) {
+                                        const html = markdownToHtml(content);
+                                        editorHtmlRef.current = html;
+                                        setEditorHtml(html);
+                                    }
+                                }}
+                                onInput={(html) => { rememberEditorSelection(); syncEditorHtml(html); }}
+                                onContextMenu={openAnnotationMenu}
+                                onToggleBold={toggleBold}
+                                onToggleUnderline={toggleUnderline}
+                                onFontSizeChange={changeEditorFontSize}
+                                onFontFamilyChange={changeEditorFontFamily}
+                                onToggleColorPalette={() => setIsColorPaletteOpen((open) => !open)}
+                                onTextColorChange={(color) => { changeEditorTextColor(color); setIsColorPaletteOpen(false); }}
+                                onHexColorChange={setCustomHexColor}
+                                onRgbColorChange={setCustomRgbColor}
+                                onApplyHexColor={applyCustomHexColor}
+                                onApplyRgbColor={applyCustomRgbColor}
+                                onOpenImageModal={() => setImageModalOpen(true)}
+                                onAnnotationChange={setAnnotation}
+                                onCloseAnnotation={() => setAnnotationMenu(null)}
+                                onAnnotate={() => void annotateSelectedText()}
                             />
-                        ) : (
-                            <div className="wechat-article__empty">
-                                <FileTextOutlined/>
-                                <strong>等待你的标题</strong>
-                                <span>AI 将为你生成完整的公众号文章初稿</span>
-                            </div>
-                        )}
+                        ) : <ArticlePreview content={content}/>}
                     </div>
                 </article>
             </div>
-            <Modal title="添加文章配图" open={imageModalOpen} onCancel={() => setImageModalOpen(false)} footer={null} destroyOnClose>
-                <Tabs activeKey={imageTab} onChange={setImageTab} items={[
-                    {key: 'search', label: <><SearchOutlined/> AI 搜索图片</>, children: <div className="wechat-image-panel"><Input placeholder="例如：春日公园里阅读的人，清新自然" value={imagePrompt} onChange={(event) => setImagePrompt(event.target.value)} /><Input placeholder="图片说明（可选）" value={imageCaption} onChange={(event) => setImageCaption(event.target.value)} /><button type="button" onClick={() => { if (imageUrl.trim()) insertImage(imageUrl, imageCaption); else message.info('搜索能力需要配置图片搜索服务，请先粘贴图片 URL'); }}><SearchOutlined/> 搜索并插入</button></div>},
-                    {key: 'generate', label: <><RobotOutlined/> AI 生成图片</>, children: <div className="wechat-image-panel"><Input.TextArea rows={3} placeholder="描述画面、风格和氛围，AI 将为你生成配图" value={imagePrompt} onChange={(event) => setImagePrompt(event.target.value)} /><Input placeholder="图片说明（可选）" value={imageCaption} onChange={(event) => setImageCaption(event.target.value)} /><button type="button" disabled={imageLoading} onClick={createAiImage}><RobotOutlined/> {imageLoading ? '正在生成…' : '生成并插入'}</button></div>},
-                    {key: 'url', label: <><UploadOutlined/> 图片地址</>, children: <div className="wechat-image-panel"><Input placeholder="粘贴图片 URL" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} /><Input placeholder="图片说明（可选）" value={imageCaption} onChange={(event) => setImageCaption(event.target.value)} /><button type="button" onClick={() => insertImage(imageUrl, imageCaption)}><UploadOutlined/> 插入图片</button></div>},
-                ]}/>
-            </Modal>
+            <ImageInsertModal
+                open={imageModalOpen}
+                activeTab={imageTab}
+                imageUrl={imageUrl}
+                caption={imageCaption}
+                prompt={imagePrompt}
+                loading={imageLoading}
+                onClose={() => setImageModalOpen(false)}
+                onTabChange={setImageTab}
+                onImageUrlChange={setImageUrl}
+                onCaptionChange={setImageCaption}
+                onPromptChange={setImagePrompt}
+                onInsert={insertImage}
+                onSearchInsert={() => {
+                    if (imageUrl.trim()) insertImage(imageUrl, imageCaption);
+                    else message.info('搜索能力需要配置图片搜索服务，请先粘贴图片 URL');
+                }}
+                onGenerate={() => void createAiImage()}
+            />
         </section>
     );
 }

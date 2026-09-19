@@ -37,8 +37,10 @@ contextBridge.exposeInMainWorld('api', {
         ipcRenderer.on('agent-controller-input-echo', (_, data) => callback(data));
     },
     selectFolder: () => ipcRenderer.invoke('select-folder'),
+    importWechatDocx: () => ipcRenderer.invoke('import-wechat-docx'),
     loadWechatArticle: () => ipcRenderer.invoke('load-wechat-article'),
     saveWechatArticle: (article: unknown) => ipcRenderer.invoke('save-wechat-article', article),
+    annotateWechatArticle: (request: unknown) => ipcRenderer.invoke('annotate-wechat-article', request),
 
     llmSetting: (param: string) => ipcRenderer.invoke("llm-Setting", param),
 
