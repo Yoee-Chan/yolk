@@ -6,6 +6,7 @@ import {getStoredToken} from '../api/cloudApi';
 import ArticleEditor from './wechat-article/ArticleEditor';
 import ArticlePreview from './wechat-article/ArticlePreview';
 import ArticleSidebar from './wechat-article/ArticleSidebar';
+import OutlineEditor from './wechat-article/OutlineEditor';
 import ImageInsertModal from './wechat-article/ImageInsertModal';
 import {cleanArticleContent, extractText, htmlToMarkdown, isRichArticleContent, markdownToHtml, outlineFromHtml, outlineToMarkdown, removeImportedNoise, updateOutlineNodes} from './wechat-article/articleUtils';
 import type {AnnotationMenuPosition, OutlineNode} from './wechat-article/types';
@@ -22,8 +23,6 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const [content, setContent] = useState('');
     const [editingContent, setEditingContent] = useState(false);
     const [generating, setGenerating] = useState(false);
-    const [leftWidth, setLeftWidth] = useState(264);
-    const [isDragging, setIsDragging] = useState(false);
     const [fontSize, setFontSize] = useState(14);
     const [fontFamily, setFontFamily] = useState("'Microsoft YaHei', sans-serif");
     const [textColor, setTextColor] = useState('#293548');
@@ -49,7 +48,6 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const [importing, setImporting] = useState(false);
     const draftStateRef = useRef({title: '', subtitle: '', content: '', outlineTree: [] as OutlineNode[]});
     const carryRef = useRef('');
-    const workspaceRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<HTMLDivElement>(null);
     const selectionRangeRef = useRef<Range | null>(null);
     const outline = useMemo(() => outlineToMarkdown(outlineTree), [outlineTree]);
@@ -104,31 +102,6 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         window.addEventListener('keydown', handleSaveShortcut);
         return () => window.removeEventListener('keydown', handleSaveShortcut);
     }, [saveDraft]);
-
-    useEffect(() => {
-        const stopDragging = () => document.body.classList.remove('is-resizing');
-        window.addEventListener('mouseup', stopDragging);
-        return () => window.removeEventListener('mouseup', stopDragging);
-    }, []);
-
-    const resizeWorkspace = (event: React.MouseEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        document.body.classList.add('is-resizing');
-        setIsDragging(true);
-        const move = (moveEvent: MouseEvent) => {
-            const bounds = workspaceRef.current?.getBoundingClientRect();
-            if (!bounds) return;
-            setLeftWidth(Math.max(280, Math.min(bounds.width - 368, moveEvent.clientX - bounds.left)));
-        };
-        const stop = () => {
-            document.removeEventListener('mousemove', move);
-            document.removeEventListener('mouseup', stop);
-            document.body.classList.remove('is-resizing');
-            setIsDragging(false);
-        };
-        document.addEventListener('mousemove', move);
-        document.addEventListener('mouseup', stop);
-    };
 
     const addOutlineNode = (parentId: string | null, level: number) => {
         const node: OutlineNode = {id: `${Date.now()}-${Math.random()}`, level, text: '', children: []};
@@ -351,7 +324,9 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         return () => document.removeEventListener('selectionchange', rememberEditorSelection);
     }, []);
 
-    const applyEditorCommand = (command: 'bold' | 'underline' | 'fontName' | 'foreColor', value?: string) => {
+    type EditorCommand = 'bold' | 'underline' | 'italic' | 'strikeThrough' | 'fontName' | 'foreColor' | 'backColor';
+
+    const applyEditorCommand = (command: EditorCommand, value?: string) => {
         const editor = editorRef.current;
         const range = selectionRangeRef.current;
         if (!editor || !range || range.collapsed || !editor.contains(range.commonAncestorContainer)) {
@@ -361,28 +336,59 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
 
         editor.focus();
         restoreEditorSelection();
-        const wrapper = command === 'bold'
-            ? document.createElement('strong')
-            : command === 'underline'
-                ? document.createElement('u')
-                : document.createElement('span');
-        if (command === 'fontName') wrapper.style.fontFamily = value ?? fontFamily;
-        if (command === 'foreColor') wrapper.style.color = value ?? textColor;
-        wrapper.appendChild(range.extractContents());
-        range.insertNode(wrapper);
+        if (command === 'bold' || command === 'underline' || command === 'italic' || command === 'strikeThrough') {
+            document.execCommand(command, false);
+        } else {
+            const wrapper = document.createElement('span');
+            if (command === 'fontName') wrapper.style.fontFamily = value ?? fontFamily;
+            if (command === 'foreColor') wrapper.style.color = value ?? textColor;
+            if (command === 'backColor') wrapper.style.backgroundColor = value ?? '#fff2cc';
+            wrapper.appendChild(range.extractContents());
+            range.insertNode(wrapper);
+            const selectedRange = document.createRange();
+            selectedRange.selectNodeContents(wrapper);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(selectedRange);
+            selectionRangeRef.current = selectedRange.cloneRange();
+        }
+        syncEditorHtml(editor.innerHTML);
+    };
 
-        const selectedRange = document.createRange();
-        selectedRange.selectNodeContents(wrapper);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(selectedRange);
-        selectionRangeRef.current = selectedRange.cloneRange();
+    const applyBlockCommand = (command: 'justifyLeft' | 'justifyCenter' | 'justifyRight' | 'insertOrderedList' | 'insertUnorderedList') => {
+        const editor = editorRef.current;
+        const range = selectionRangeRef.current;
+        if (!editor || !range || !editor.contains(range.commonAncestorContainer)) {
+            message.info('请先将光标放在文章正文中');
+            return;
+        }
+        editor.focus();
+        restoreEditorSelection();
+        document.execCommand(command, false);
+        syncEditorHtml(editor.innerHTML);
+    };
+
+    const insertLink = () => {
+        const editor = editorRef.current;
+        const range = selectionRangeRef.current;
+        if (!editor || !range || range.collapsed || !editor.contains(range.commonAncestorContainer)) {
+            message.info('请先选中需要添加链接的文字');
+            return;
+        }
+        const url = window.prompt('请输入链接地址', 'https://');
+        if (!url?.trim()) return;
+        editor.focus();
+        restoreEditorSelection();
+        document.execCommand('createLink', false, url.trim());
         syncEditorHtml(editor.innerHTML);
     };
 
     const toggleBold = () => applyEditorCommand('bold');
 
     const toggleUnderline = () => applyEditorCommand('underline');
+    const toggleItalic = () => applyEditorCommand('italic');
+    const toggleStrikeThrough = () => applyEditorCommand('strikeThrough');
+    const applyBackgroundColor = (value: string) => applyEditorCommand('backColor', value);
 
     const changeEditorFontFamily = (value: string) => {
         setFontFamily(value);
@@ -554,7 +560,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         const plainText = isRichContent ? htmlToMarkdown(content) : cleanArticleContent(content);
         const copyRoot = document.createElement('div');
         copyRoot.innerHTML = isRichContent ? content : markdownToHtml(plainText);
-        copyRoot.style.cssText = "max-width:100%; box-sizing:border-box; font-family:Arial,'Microsoft YaHei',sans-serif; line-height:1.9; color:#293548; overflow-wrap:anywhere; word-break:break-word";
+        copyRoot.style.cssText = "max-width:100%; box-sizing:border-box; font-family:ui-sans-serif,system-ui,'Microsoft YaHei','Noto Sans SC',sans-serif; line-height:1.9; color:#303238; overflow-wrap:anywhere; word-break:break-word";
         copyRoot.querySelectorAll('img').forEach((image) => {
             image.removeAttribute('width');
             image.removeAttribute('height');
@@ -599,9 +605,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
             </header>
 
             <div
-                ref={workspaceRef}
                 className="wechat-composer__workspace"
-                style={{gridTemplateColumns: `${leftWidth}px 8px minmax(360px, 1fr)`}}
             >
                 <ArticleSidebar
                     title={title}
@@ -616,30 +620,25 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                     onOutlineRemove={removeOutlineNode}
                     onGenerate={generate}
                 />
-                <div
-                    className={isDragging ? 'wechat-composer__splitter wechat-composer__splitter--dragging' : 'wechat-composer__splitter'}
-                    role="separator"
-                    aria-label="调整编辑区和预览区宽度"
-                    aria-orientation="vertical"
-                    onMouseDown={resizeWorkspace}
-                />
 
                 <article className="wechat-article">
                     <div className="wechat-article__toolbar">
-                        <span>{generating ? '正在为你撰写文章…' : content ? 'AI 已完成文章，可复制到公众号编辑器' : '文章预览'}</span>
-                        {lastSavedAt ? <small className="wechat-article__saved">最近保存：{new Date(lastSavedAt).toLocaleTimeString()}</small> : null}
-                        {content ? (
-                            <div className="wechat-article__actions">
-                                <button type="button" onClick={() => { const nextEditing = !editingContent; if (nextEditing) editorHtmlRef.current = ''; setEditingContent(nextEditing); }}>{editingContent ? '完成编辑' : '编辑文章'}</button>
-                                <button type="button" onClick={exportDocx}><FileTextOutlined/> 导出 Word</button>
-                                <button type="button" onClick={copyContent}><CopyOutlined/> 复制全文</button>
-                            </div>
-                        ) : null}
+                        <span>{generating ? '正在为你撰写文章…' : content ? '已保存到云端' : '新建文章'}</span>
+                        {lastSavedAt ? <small className="wechat-article__saved">最近保存 {new Date(lastSavedAt).toLocaleTimeString()}</small> : null}
+                        <div className="wechat-article__actions">
+                            {content ? <button type="button" onClick={() => { const nextEditing = !editingContent; if (nextEditing) editorHtmlRef.current = ''; setEditingContent(nextEditing); }}>{editingContent ? '完成编辑' : '编辑文章'}</button> : null}
+                            {content ? <button type="button" onClick={exportDocx}><FileTextOutlined/> 导出 Word</button> : null}
+                            {content ? <button type="button" onClick={copyContent}><CopyOutlined/> 复制全文</button> : null}
+                        </div>
                     </div>
                     <div className="wechat-article__canvas">
                         {content && editingContent ? (
                             <ArticleEditor
                                 editorRef={editorRef}
+                                title={title}
+                                subtitle={subtitle}
+                                onTitleChange={setTitle}
+                                onSubtitleChange={setSubtitle}
                                 editorHtml={editorHtml}
                                 fontSize={fontSize}
                                 fontFamily={fontFamily}
@@ -664,6 +663,11 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                                 onContextMenu={openAnnotationMenu}
                                 onToggleBold={toggleBold}
                                 onToggleUnderline={toggleUnderline}
+                                onToggleItalic={toggleItalic}
+                                onToggleStrikeThrough={toggleStrikeThrough}
+                                onApplyBackgroundColor={applyBackgroundColor}
+                                onApplyBlockCommand={applyBlockCommand}
+                                onInsertLink={insertLink}
                                 onFontSizeChange={changeEditorFontSize}
                                 onFontFamilyChange={changeEditorFontFamily}
                                 onToggleColorPalette={() => setIsColorPaletteOpen((open) => !open)}
@@ -680,6 +684,16 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                         ) : <ArticlePreview content={content}/>}
                     </div>
                 </article>
+                <aside className="wechat-composer__outline-panel" aria-label="文章大纲">
+                    <div className="wechat-composer__outline-panel-title">大纲 <span>{outlineTree.length ? `${outlineTree.length} 个章节` : '暂无章节'}</span></div>
+                    <OutlineEditor
+                        nodes={outlineTree}
+                        onChange={updateOutlineText}
+                        onAdd={addOutlineNode}
+                        onRemove={removeOutlineNode}
+                    />
+                    {!outlineTree.length ? <p>生成文章后，这里会显示文章结构</p> : null}
+                </aside>
             </div>
             <ImageInsertModal
                 open={imageModalOpen}

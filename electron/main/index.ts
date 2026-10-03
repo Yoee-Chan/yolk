@@ -4,6 +4,7 @@ import {promises as fs} from 'fs'
 import {spawn, ChildProcessWithoutNullStreams} from 'child_process'
 import {is} from '@electron-toolkit/utils'
 import {runAtlassianOAuthFlow} from './jira-oauth'
+import {importDocxPackage} from '../docx/packageService'
 
 let py: ChildProcessWithoutNullStreams | null = null
 /** 最近一次发起 agent 渲染进程的 WebContents，用于复用子进程时仍能推送 stdout/stderr */
@@ -360,6 +361,18 @@ app.whenReady().then(() => {
             py.stdin.write(Buffer.from(JSON.stringify(data) + '\n', 'utf8'))
         }
     })
+    ipcMain.handle('import-wechat-docx', async () => {
+        const result = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{name: 'Word 文档', extensions: ['docx']}],
+        })
+        const filePath = result.filePaths?.[0]
+        if (!filePath) return null
+
+        const imported = await importDocxPackage(filePath)
+        return {fileName: imported.fileName, html: imported.html}
+    })
+
     ipcMain.handle('load-wechat-article', async () => {
         try {
             const value = await fs.readFile(await wechatArticlePath(), 'utf8')
