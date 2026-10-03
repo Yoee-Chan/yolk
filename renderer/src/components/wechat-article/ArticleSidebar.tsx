@@ -32,6 +32,13 @@ export default function ArticleSidebar({
 }: ArticleSidebarProps) {
     return (
         <aside className="wechat-composer__form" aria-label="文章设置与目录">
+            <div className="wechat-sidebar__brand"><span className="wechat-sidebar__logo">Y</span><strong>Meta Yolk Docs</strong><button type="button" aria-label="新建文章" onClick={onGenerate}>＋</button></div>
+            <nav className="wechat-sidebar__nav" aria-label="工作区导航">
+                <button type="button">⌂ <span>首页</span></button>
+                <button type="button" className="is-active">☷ <span>目录</span></button>
+            </nav>
+            <div className="wechat-sidebar__document"><span className="wechat-sidebar__document-dot"/> {title || '未命名文章'}</div>
+            <div className="wechat-sidebar__settings-title">文章设置</div>
             <label htmlFor="article-title">文章标题</label>
             <input
                 id="article-title"
