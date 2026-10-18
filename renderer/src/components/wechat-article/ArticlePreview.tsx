@@ -1,8 +1,11 @@
 import React from 'react';
 import {FileTextOutlined} from '@ant-design/icons';
 import {cleanArticleContent, isRichArticleContent} from './articleUtils';
+import {ArticleDocumentHeader} from './ArticleEditor';
 
 type ArticlePreviewProps = {
+    title: string;
+    subtitle: string;
     content: string;
 };
 
@@ -25,15 +28,11 @@ function renderMarkdown(markdown: string) {
     });
 }
 
-export default function ArticlePreview({content}: ArticlePreviewProps) {
-    if (!content) {
-        return <div className="wechat-article__empty"><FileTextOutlined/><strong>等待你的标题</strong><span>AI 将为你生成完整的公众号文章初稿</span></div>;
-    }
+export default function ArticlePreview({title, subtitle, content}: ArticlePreviewProps) {
     return (
-        <div
-            className="wechat-article__formatted"
-            aria-label="公众号文章正文预览"
-            {...(isRichArticleContent(content) ? {dangerouslySetInnerHTML: {__html: content}} : {children: renderMarkdown(content)})}
-        />
+        <div className="wechat-article__formatted" aria-label="公众号文章预览">
+            <ArticleDocumentHeader title={title} subtitle={subtitle}/>
+            {content ? (isRichArticleContent(content) ? <div dangerouslySetInnerHTML={{__html: content}}/> : renderMarkdown(content)) : <div className="wechat-article__empty"><FileTextOutlined/><strong>{title ? '等待正文内容' : '等待你的标题'}</strong><span>AI 将为你生成完整的公众号文章初稿</span></div>}
+        </div>
     );
 }

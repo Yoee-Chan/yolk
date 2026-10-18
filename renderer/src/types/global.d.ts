@@ -28,7 +28,7 @@ declare global {
             onPythonInputEcho?: (callback: (data: string) => void) => void;
 
             selectFolder: () => Promise<string | null>;
-            importWechatDocx: () => Promise<{fileName: string; html: string} | null>;
+            importWechatDocx: () => Promise<{fileName: string; markdown: string; title: string; outline: Array<{level: number; text: string}>} | null>;
             loadWechatArticle: () => Promise<WechatArticleDraft | null>;
             saveWechatArticle: (article: WechatArticleDraft) => Promise<boolean>;
             annotateWechatArticle: (request: {

@@ -146,29 +146,56 @@ async def _handle_annotation(payload: dict) -> None:
     sys.stdout.flush()
 
 
+# 标题提炼等后台任务：不阻塞主对话流程，主流程结束后再兜底等待其完成
+_BACKGROUND_TASKS: set = set()
+
+
+def _fallback_task_title(user_task: str) -> str:
+    """模型不可用时的兜底标题：直接用首条消息前 20 个字符。"""
+    compact = " ".join((user_task or "").split())
+    return compact[:20]
+
+
+def _normalize_task_title(raw: str) -> str:
+    first_line = (raw or "").strip().splitlines()
+    if not first_line:
+        return ""
+    title = first_line[0].strip().strip("「」『』\"'“”‘’ ")
+    return title[:20]
+
+
 async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
-    """首条消息时用模型提取任务关键词并写入 yolk-cloud。"""
-    api_url = os.environ.get("YOLK_API_URL", "http://localhost:8080").rstrip("/")
+    """首条消息时用模型提炼标题并写入 yolk-cloud；作为后台任务执行，不阻塞对话。"""
+    api_url = os.environ.get("YOLK_API_URL", "http://localhost:8088").rstrip("/")
     token = (os.environ.get("YOLK_AUTH_TOKEN") or "").strip()
     if not task_id or not token:
         return
+
+    title = ""
     try:
         llm = LLM()
-        title = await llm.ask(
+        raw_title = await llm.ask(
             [
                 Message.user_message(
-                    "请从以下用户任务中提取关键主题，用不超过20个字的简体中文关键词作为对话标题。"
-                    "只输出标题本身，不要引号、标点或解释：\n"
+                    "请根据以下用户的第一条消息，提炼一个不超过 20 个字的简体中文对话标题，"
+                    "概括用户想做的事情。只输出标题本身，不要引号、标点、前缀或解释：\n"
                     + user_task
                 )
             ],
             stream=False,
             temperature=0.2,
         )
-        title = (title or user_task).strip().splitlines()[0][:40]
-        if not title:
-            return
-        http_put(
+        title = _normalize_task_title(raw_title or "")
+    except Exception:
+        logging.exception("模型提炼任务标题失败，将使用兜底标题")
+
+    if not title:
+        title = _fallback_task_title(user_task)
+    if not title:
+        return
+
+    try:
+        resp = http_put(
             f"{api_url}/api/chat/tasks/{task_id}/title",
             json={"title": title},
             headers={
@@ -177,6 +204,11 @@ async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
             },
             timeout=10,
         )
+        if not resp.ok:
+            logging.warning(
+                "更新任务标题失败：HTTP %s %s", resp.status_code, resp.text[:200]
+            )
+            return
         print(
             json.dumps(
                 {"type": "task_title", "taskId": task_id, "text": title},
@@ -186,6 +218,33 @@ async def _generate_and_save_task_title(task_id: str, user_task: str) -> None:
         sys.stdout.flush()
     except Exception:
         logging.exception("更新任务标题失败")
+
+
+def _schedule_task_title(task_id: str, user_task: str) -> None:
+    task = asyncio.create_task(_generate_and_save_task_title(task_id, user_task))
+    _BACKGROUND_TASKS.add(task)
+    task.add_done_callback(_BACKGROUND_TASKS.discard)
+
+
+async def _drain_background_tasks(timeout: float = 15.0) -> None:
+    """主流程结束后兜底推进后台任务（事件循环停止时任务会冻结）。
+
+    分段轮询请求队列：一旦用户发来下一条消息就提前返回，避免阻塞对话。
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while True:
+        pending = [t for t in _BACKGROUND_TASKS if not t.done()]
+        if not pending or not _RUN_QUEUE.empty():
+            return
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return
+        try:
+            await asyncio.wait(pending, timeout=min(0.5, remaining))
+        except Exception:
+            logging.exception("等待后台任务失败")
+            return
 
 
 def _format_chat_history(history: list) -> str:
@@ -308,7 +367,8 @@ async def main(
         history = []
     run_meta = run_meta or {}
     if run_meta.get("isFirstMessage") and run_meta.get("taskId"):
-        await _generate_and_save_task_title(str(run_meta["taskId"]), user_task)
+        # 标题提炼是纯附加动作：异步执行，不阻塞本轮对话。
+        _schedule_task_title(str(run_meta["taskId"]), user_task)
     if not user_task:
         print(
             json.dumps(
@@ -473,11 +533,17 @@ if __name__ == "__main__":
         while True:
             req = read_run_request()
             if req is None:
+                # stdin 已关闭（应用退出/进程重启），此时把标题等后台任务彻底跑完。
+                loop.run_until_complete(_drain_background_tasks())
                 break
             user_task, history, run_meta = req
             if run_meta.get("mode") == "annotation":
                 loop.run_until_complete(_handle_annotation(run_meta))
             else:
-                loop.run_until_complete(main(user_task, history, run_meta))
+                try:
+                    loop.run_until_complete(main(user_task, history, run_meta))
+                finally:
+                    # 主流程提前返回（如空消息）时也把标题等后台任务跑完
+                    loop.run_until_complete(_drain_background_tasks())
     finally:
         loop.close()

@@ -5,7 +5,24 @@ import type {AnnotationMenuPosition} from './types';
 
 const EDITOR_TEXT_COLORS = ['#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#efefef', '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff', '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#cfe2f3', '#d9d2e9', '#cc0000', '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6d9eeb', '#6fa8dc', '#8e7cc3', '#660000', '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#1155cc', '#0b5394', '#351c75'];
 
- type ArticleEditorProps = {
+type ArticleDocumentHeaderProps = {
+    title: string;
+    subtitle: string;
+    editable?: boolean;
+    onTitleChange?: (value: string) => void;
+    onSubtitleChange?: (value: string) => void;
+};
+
+export function ArticleDocumentHeader({title, subtitle, editable = false, onTitleChange, onSubtitleChange}: ArticleDocumentHeaderProps) {
+    return (
+        <div className="wechat-editor__document-header">
+            {editable ? <input aria-label="文章标题" value={title} onChange={(event) => onTitleChange?.(event.target.value)} placeholder="请输入文章标题" maxLength={80}/> : <h1>{title || '未命名文章'}</h1>}
+            {editable ? <input aria-label="文章副标题" value={subtitle} onChange={(event) => onSubtitleChange?.(event.target.value)} placeholder="添加副标题（可选）" maxLength={100}/> : subtitle ? <p>{subtitle}</p> : null}
+        </div>
+    );
+}
+
+type ArticleEditorProps = {
     editorRef: React.RefObject<HTMLDivElement | null>; title: string; subtitle: string; onTitleChange: (value: string) => void; onSubtitleChange: (value: string) => void; editorHtml: string; fontSize: number; fontFamily: string; textColor: string; boldMode: boolean; colorPaletteOpen: boolean; customHexColor: string; customRgbColor: string; annotation: string; selectedText: string; annotationMenu: AnnotationMenuPosition | null; annotationLoading: boolean; onRememberSelection: () => void; onFocus: () => void; onInput: (html: string) => void; onContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void; onToggleBold: () => void; onToggleUnderline: () => void; onToggleItalic: () => void; onToggleStrikeThrough: () => void; onApplyBackgroundColor: (value: string) => void; onApplyBlockCommand: (command: 'justifyLeft' | 'justifyCenter' | 'justifyRight' | 'insertOrderedList' | 'insertUnorderedList') => void; onInsertLink: () => void; onFontSizeChange: (value: number) => void; onFontFamilyChange: (value: string) => void; onToggleColorPalette: () => void; onTextColorChange: (value: string) => void; onHexColorChange: (value: string) => void; onRgbColorChange: (value: string) => void; onApplyHexColor: () => void; onApplyRgbColor: () => void; onOpenImageModal: () => void; onAnnotationChange: (value: string) => void; onCloseAnnotation: () => void; onAnnotate: () => void;
 };
 
@@ -34,10 +51,10 @@ export default function ArticleEditor(props: ArticleEditorProps) {
                 </div>
             </div>
             <div className="wechat-editor__scroll">
-            <div className="wechat-editor__document-header"><input aria-label="文章标题" value={props.title} onChange={(event) => props.onTitleChange(event.target.value)} placeholder="请输入文章标题" maxLength={80}/><input aria-label="文章副标题" value={props.subtitle} onChange={(event) => props.onSubtitleChange(event.target.value)} placeholder="添加副标题（可选）" maxLength={100}/></div>
+            <ArticleDocumentHeader title={props.title} subtitle={props.subtitle} editable onTitleChange={props.onTitleChange} onSubtitleChange={props.onSubtitleChange}/>
             <div ref={props.editorRef} onFocus={props.onFocus} className="wechat-editor__surface" contentEditable suppressContentEditableWarning role="textbox" aria-label="编辑公众号文章正文" style={{fontFamily: props.fontFamily}} dangerouslySetInnerHTML={{__html: props.editorHtml}} onMouseUp={props.onRememberSelection} onKeyUp={props.onRememberSelection} onSelect={props.onRememberSelection} onContextMenu={props.onContextMenu} onInput={(event) => props.onInput(event.currentTarget.innerHTML)}/>
             <div className="wechat-editor__hint">像 Word 一样直接编辑：选中文本后点击格式按钮；选中文本后右键可用 AI 批注修改。</div>
-            {props.annotationMenu ? <div className="wechat-annotation-menu" style={{left: props.annotationMenu.x, top: props.annotationMenu.y}} onMouseDown={(event) => event.stopPropagation()}><div className="wechat-annotation-menu__selection">已选：{props.selectedText.slice(0, 42)}{props.selectedText.length > 42 ? '…' : ''}</div><Input.TextArea rows={3} autoFocus value={props.annotation} onChange={(event) => props.onAnnotationChange(event.target.value)} placeholder="例如：改得更简洁、更有说服力" onPressEnter={(event) => { if (!event.shiftKey) { event.preventDefault(); props.onAnnotate(); } }}/><div className="wechat-annotation-menu__actions"><button type="button" onClick={props.onCloseAnnotation}>取消</button><button type="button" disabled={props.annotationLoading} onClick={props.onAnnotate}>{props.annotationLoading ? '修改中…' : '发送批注'}</button></div></div> : null}
+            {props.annotationMenu ? <div className={`wechat-annotation-menu is-${props.annotationMenu.placement}`} style={{left: props.annotationMenu.x, top: props.annotationMenu.y}} onMouseDown={(event) => event.stopPropagation()}><div className="wechat-annotation-menu__selection">已选：{props.selectedText.slice(0, 42)}{props.selectedText.length > 42 ? '…' : ''}</div><Input.TextArea rows={3} autoFocus value={props.annotation} onChange={(event) => props.onAnnotationChange(event.target.value)} placeholder="例如：改得更简洁、更有说服力" onPressEnter={(event) => { if (!event.shiftKey) { event.preventDefault(); props.onAnnotate(); } }}/><div className="wechat-annotation-menu__actions"><button type="button" onClick={props.onCloseAnnotation}>取消</button><button type="button" disabled={props.annotationLoading} onClick={props.onAnnotate}>{props.annotationLoading ? '修改中…' : '发送批注'}</button></div></div> : null}
             </div>
         </div>
     );

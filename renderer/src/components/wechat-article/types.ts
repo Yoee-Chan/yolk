@@ -13,4 +13,5 @@ export type OutlineNode = {
 export type AnnotationMenuPosition = {
     x: number;
     y: number;
+    placement: 'above' | 'below';
 };

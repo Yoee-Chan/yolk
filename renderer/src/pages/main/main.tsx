@@ -171,12 +171,12 @@ export default function MainPage() {
         [activeTaskId]
     );
 
-    const ActiveComponent = PageMap[activeKey];
+    const ActiveComponent = PageMap[activeKey] as React.ComponentType;
 
     return (
         <div className={activeKey === 'wechatArticle' ? 'layout layout--composer' : 'layout'}>
             {activeKey !== 'wechatArticle' ? <aside className="sidebar">
-                <Assistant activeItem={activeKey} onClickItem={setActiveKey}/>
+                <Assistant activeItem={activeKey} onClickItem={(item) => setActiveKey(item as keyof typeof PageMap)}/>
                 <div className="sidebar-divider" role="separator"/>
                 <History
                     tasks={tasks}

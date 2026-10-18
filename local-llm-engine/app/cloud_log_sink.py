@@ -14,7 +14,7 @@ import requests
 _API_URL_ENV = "YOLK_API_URL"
 _TOKEN_ENV = "YOLK_AUTH_TOKEN"
 _SESSION_ENV = "YOLK_LOG_SESSION_ID"
-_DEFAULT_API_URL = "http://localhost:8080"
+_DEFAULT_API_URL = "http://localhost:8088"
 
 
 class _CloudLogBatcher:

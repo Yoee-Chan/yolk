@@ -1,4 +1,8 @@
-const BASE_URL = import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8088';
+/** 云端 API 基础地址：主进程等后端调用也必须复用该值，避免标题等写接口打到错误端口。 */
+export const CLOUD_API_BASE_URL =
+    import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8088';
+
+const BASE_URL = CLOUD_API_BASE_URL;
 
 export interface ApiResponse<T> {
     code: number;
