@@ -40,15 +40,20 @@ function escapeHtml(value: string): string {
     return value.replace(/[&<>\"]/g, (character) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;'}[character] ?? character));
 }
 
+function renderMarkdownInline(value: string): string {
+    return value.split(/(<[^>]+>)/g).map((part) => part.startsWith('<') ? part : escapeHtml(part)
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')).join('');
+}
+
 export function markdownToHtml(markdown: string): string {
     const html = cleanArticleContent(markdown).split(/\r?\n/).map((line) => {
-        if (/^###\s+/.test(line)) return `<h3>${escapeHtml(line.replace(/^###\s+/, '').replace(/\s+#+$/, ''))}</h3>`;
-        if (/^##\s+/.test(line)) return `<h2>${escapeHtml(line.replace(/^##\s+/, '').replace(/\s+#+$/, ''))}</h2>`;
-        if (/^#\s+/.test(line)) return `<h1>${escapeHtml(line.replace(/^#\s+/, '').replace(/\s+#+$/, ''))}</h1>`;
-        const image = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-        if (image) return `<figure><img src="${escapeHtml(image[2])}" alt="${escapeHtml(image[1] || '文章配图')}" /><figcaption>${escapeHtml(image[1])}</figcaption></figure>`;
-        if (/^[-*]\s+/.test(line)) return `<li>${escapeHtml(line.replace(/^[-*]\s+/, ''))}</li>`;
-        return line ? `<p>${escapeHtml(line).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')}</p>` : '';
+        if (/^###\s+/.test(line)) return `<h3>${renderMarkdownInline(line.replace(/^###\s+/, '').replace(/\s+#+$/, ''))}</h3>`;
+        if (/^##\s+/.test(line)) return `<h2>${renderMarkdownInline(line.replace(/^##\s+/, '').replace(/\s+#+$/, ''))}</h2>`;
+        if (/^#\s+/.test(line)) return `<h1>${renderMarkdownInline(line.replace(/^#\s+/, '').replace(/\s+#+$/, ''))}</h1>`;
+        if (/^[-*]\s+/.test(line)) return `<li>${renderMarkdownInline(line.replace(/^[-*]\s+/, ''))}</li>`;
+        return line ? `<p>${renderMarkdownInline(line)}</p>` : '';
     }).join('');
     return html.replace(/(<li>.*?<\/li>)+/gs, (list) => `<ul>${list}</ul>`);
 }
@@ -148,8 +153,8 @@ export function parseOutline(markdown: string): OutlineNode[] {
 export function outlineFromHtml(html: string): OutlineNode[] {
     const root = document.createElement('div');
     root.innerHTML = html;
-    const markdown = Array.from(root.querySelectorAll('h2, h3, h4')).map((heading) => {
-        const level = Number(heading.tagName.slice(1)) - 1;
+    const markdown = Array.from(root.querySelectorAll('h1, h2, h3, h4, h5, h6')).map((heading) => {
+        const level = Number(heading.tagName.slice(1));
         return `${'#'.repeat(level)} ${heading.textContent?.trim() ?? ''}`;
     }).filter((line) => line.trim().length > 2).join('\n');
     return parseOutline(markdown);

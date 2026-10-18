@@ -1,20 +1,27 @@
 {
   "name": "yolk",
   "version": "1.0.0",
-  "main": "dist-electron/main/index.js",
-  "description": "Yolk助手 — 本地化 AI 智能工作台（Windows 桌面端）",
+  "type": "module",
+  "description": "Yolk鍔╂墜 鈥?鏈湴鍖?AI 鏅鸿兘宸ヤ綔鍙帮紙Windows 妗岄潰绔級",
   "author": "chan",
   "license": "MIT",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "tauri dev",
+    "dev:renderer": "vite",
+    "dev:tauri": "tauri dev",
+    "build": "npm run build:agent && npm run build:docx-converter && npm run stage:binaries && npm run build:tauri",
+    "build:renderer": "vite build",
+    "build:agent": "node scripts/build-agent.mjs",
+    "build:agent:stream": "node scripts/build-agent.mjs --stream-only",
+    "build:agent:tools": "node scripts/build-agent.mjs --tools-only",
+    "build:docx-converter": "node scripts/build-docx-converter.mjs",
+    "stage:binaries": "node scripts/stage-binaries.mjs",
+    "build:tauri": "tauri build",
     "prepare:icon": "powershell -ExecutionPolicy Bypass -File scripts/prepare-app-icon.ps1",
-    "build:win": "electron-builder --win",
-    "build:installer": "npm run build && npm run build:win",
-    "preview": "electron-vite preview"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@electron-toolkit/utils": "^4.0.0",
+    "@tauri-apps/api": "^2.0.0",
     "@xmldom/xmldom": "^0.9.12",
     "antd": "^6.3.4",
     "docx": "^9.7.1",
@@ -24,57 +31,14 @@
     "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react-swc": "^3.0.0",
-    "autoprefixer": "^10.4.27",
-    "electron": "^30.0.0",
-    "electron-builder": "^24.13.3",
-    "electron-vite": "^2.0.0",
+    "@tauri-apps/cli": "^2.0.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.0.0",
-    "vite": "^5.0.0"
-  },
-  "build": {
-    "appId": "com.yolk.assistant",
-    "productName": "Yolk助手",
-    "icon": "renderer/public/yolk-logo.ico",
-    "directories": {
-      "output": "dist"
-    },
-    "artifactName": "Yolk助手-Setup-${version}.${ext}",
-    "files": [
-      "dist-electron/**/*",
-      "dist/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "renderer/public/yolk-logo.ico",
-        "to": "yolk-logo.ico"
-      },
-      {
-        "from": "agent-controller/dist/agent_stream.exe",
-        "to": "agent_stream.exe"
-      },
-      {
-        "from": "agent-controller/dist/agent_tools.exe",
-        "to": "agent_tools.exe"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "renderer/public/yolk-logo.ico",
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Yolk助手",
-      "installerIcon": "renderer/public/yolk-logo.ico",
-      "uninstallerIcon": "renderer/public/yolk-logo.ico"
-    }
+    "vite": "^8.3.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react-swc": "^3.0.0",
+    "autoprefixer": "^10.4.27"
   }
 }

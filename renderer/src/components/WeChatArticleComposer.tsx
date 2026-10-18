@@ -2,13 +2,14 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowLeftOutlined, CheckOutlined, CopyOutlined, FileTextOutlined, UploadOutlined} from '@ant-design/icons';
 import {message} from 'antd';
 import {AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun} from 'docx';
-import {getStoredToken} from '../api/cloudApi';
+import {CLOUD_API_BASE_URL, getStoredToken} from '../api/cloudApi';
 import ArticleEditor from './wechat-article/ArticleEditor';
 import ArticlePreview from './wechat-article/ArticlePreview';
 import ArticleSidebar from './wechat-article/ArticleSidebar';
 import OutlineEditor from './wechat-article/OutlineEditor';
 import ImageInsertModal from './wechat-article/ImageInsertModal';
-import {cleanArticleContent, extractText, htmlToMarkdown, isRichArticleContent, markdownToHtml, outlineFromHtml, outlineToMarkdown, removeImportedNoise, updateOutlineNodes} from './wechat-article/articleUtils';
+import {cleanArticleContent, extractText, htmlToMarkdown, isRichArticleContent, markdownToHtml, outlineFromHtml, outlineToMarkdown, updateOutlineNodes} from './wechat-article/articleUtils';
+import { convertDocxFile } from '../utils/docx/packageService';
 import type {AnnotationMenuPosition, OutlineNode} from './wechat-article/types';
 import '../css/WeChatArticleComposer.css';
 
@@ -127,16 +128,12 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         try {
             const imported = await window.api.importWechatDocx();
             if (!imported) return;
-            const root = document.createElement('div');
-            root.innerHTML = imported.html;
-            const firstHeading = root.querySelector('h1, h2, h3');
-            const importedTitle = firstHeading?.textContent?.trim() || imported.fileName.replace(/\.docx$/i, '');
-            if (firstHeading?.tagName === 'H1') firstHeading.remove();
-            const html = removeImportedNoise(root.innerHTML);
-            setTitle(importedTitle);
+            const importedMarkdown = imported.markdown;
+            const html = markdownToHtml(importedMarkdown);
+            setTitle(imported.title);
             setSubtitle('');
             setOutlineTree(outlineFromHtml(html));
-            setContent(html);
+            setContent(importedMarkdown);
             editorHtmlRef.current = html;
             setEditorHtml(html);
             setEditingContent(true);
@@ -188,7 +185,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                 history: [],
                 interruptPrevious: false,
                 authToken: getStoredToken() ?? undefined,
-                apiUrl: import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080',
+                apiUrl: CLOUD_API_BASE_URL,
                 logSessionId: `wechat-article-${Date.now()}`,
                 isFirstMessage: true,
             },
@@ -267,7 +264,10 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
         }
         event.preventDefault();
         setSelectedText(text);
-        setAnnotationMenu({x: event.clientX, y: event.clientY});
+        const menuWidth = Math.min(360, window.innerWidth - 24);
+        const x = Math.min(Math.max(12, event.clientX), window.innerWidth - menuWidth - 12);
+        const placement = event.clientY > window.innerHeight - 220 ? 'above' : 'below';
+        setAnnotationMenu({x, y: event.clientY, placement});
     };
 
     const replaceSelectedText = (replacement: string) => {
@@ -298,8 +298,6 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                 annotation: instruction,
                 articleTitle: title.trim(),
                 articleContent: htmlToMarkdown(editorRef.current?.innerHTML ?? content),
-                authToken: getStoredToken() ?? undefined,
-                apiUrl: import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080',
             });
             const replacement = result.replacement
                 .replace(/^```(?:text|markdown)?\s*/i, '')
@@ -313,7 +311,8 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
             setAnnotation('');
             message.success('已根据批注更新选中文本');
         } catch (error) {
-            message.error(error instanceof Error ? error.message : '批注修改失败');
+            const detail = typeof error === 'string' ? error : error instanceof Error ? error.message : '';
+            message.error(detail || '批注修改失败');
         } finally {
             setAnnotationLoading(false);
         }
@@ -429,7 +428,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const applyCustomRgbColor = () => {
         const values = customRgbColor.match(/\d+/g)?.map(Number) ?? [];
         if (values.length !== 3 || values.some((value) => value < 0 || value > 255)) {
-            message.warning('请输入 0–255 之间的 RGB 值，例如 41, 53, 72');
+            message.warning('请输入 0—255 之间的 RGB 值，例如 41, 53, 72');
             return;
         }
         changeEditorTextColor(`#${values.map((value) => value.toString(16).padStart(2, '0')).join('')}`);
@@ -468,7 +467,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
     const insertImage = (url: string, caption = '') => {
         const trimmedUrl = url.trim();
         if (!trimmedUrl) {
-            message.warning('请输入图片地址');
+            message.warning('请先选中文本并填写批注');
             return;
         }
         setContent((previous) => `${previous.trim()}\n\n![${caption.trim() || '文章配图'}](${trimmedUrl})\n\n`);
@@ -626,13 +625,13 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                         <span>{generating ? '正在为你撰写文章…' : content ? '已保存到云端' : '新建文章'}</span>
                         {lastSavedAt ? <small className="wechat-article__saved">最近保存 {new Date(lastSavedAt).toLocaleTimeString()}</small> : null}
                         <div className="wechat-article__actions">
-                            {content ? <button type="button" onClick={() => { const nextEditing = !editingContent; if (nextEditing) editorHtmlRef.current = ''; setEditingContent(nextEditing); }}>{editingContent ? '完成编辑' : '编辑文章'}</button> : null}
+                            <button type="button" onClick={() => { const nextEditing = !editingContent; if (nextEditing) editorHtmlRef.current = ''; setEditingContent(nextEditing); }}>{editingContent ? '完成编辑' : '编辑文章'}</button>
                             {content ? <button type="button" onClick={exportDocx}><FileTextOutlined/> 导出 Word</button> : null}
                             {content ? <button type="button" onClick={copyContent}><CopyOutlined/> 复制全文</button> : null}
                         </div>
                     </div>
                     <div className="wechat-article__canvas">
-                        {content && editingContent ? (
+                        {editingContent ? (
                             <ArticleEditor
                                 editorRef={editorRef}
                                 title={title}
@@ -681,7 +680,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                                 onCloseAnnotation={() => setAnnotationMenu(null)}
                                 onAnnotate={() => void annotateSelectedText()}
                             />
-                        ) : <ArticlePreview content={content}/>}
+                        ) : <ArticlePreview title={title} subtitle={subtitle} content={content}/>}
                     </div>
                 </article>
                 <aside className="wechat-composer__outline-panel" aria-label="文章大纲">
@@ -692,7 +691,7 @@ export default function WeChatArticleComposer({onBack}: WeChatArticleComposerPro
                         onAdd={addOutlineNode}
                         onRemove={removeOutlineNode}
                     />
-                    {!outlineTree.length ? <p>生成文章后，这里会显示文章结构</p> : null}
+                    {!outlineTree.length ? <p>生成文章后，这里会显示文章结构。</p> : null}
                 </aside>
             </div>
             <ImageInsertModal

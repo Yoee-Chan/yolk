@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {cloudApi, getStoredToken} from '../api/cloudApi';
+import {CLOUD_API_BASE_URL, cloudApi, getStoredToken} from '../api/cloudApi';
 import {useAuth} from '../context/AuthContext';
 import AuthModal from './auth/AuthModal';
 import '../css/Chat.css';
@@ -25,6 +25,7 @@ type DiagMessage = {
     runId: number;
     plan: string;
     infoLines: string[];
+    progresses: string[];
 };
 
 type ChatMessage = TextMessage | DiagMessage;
@@ -113,6 +114,104 @@ function parseLineBuffer(
     return {lines: parts, carry: nextCarry};
 }
 
+/* 轻量聊天 Markdown 渲染：只支持常见行内语法与段落/列表/标题/代码块，
+   且先转义 HTML，避免模型输出注入。 */
+function escapeChatHtml(value: string): string {
+    return value.replace(
+        /[&<>"]/g,
+        (character) =>
+            ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+            })[character] ?? character
+    );
+}
+
+function renderInline(value: string): string {
+    return escapeChatHtml(value)
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+}
+
+function renderChatMarkdown(markdown: string): string {
+    const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+    const html: string[] = [];
+    let inCode = false;
+    let codeBuffer: string[] = [];
+    let listBuffer: string[] = [];
+
+    const flushList = () => {
+        if (listBuffer.length) {
+            html.push(`<ul>${listBuffer.join('')}</ul>`);
+            listBuffer = [];
+        }
+    };
+
+    for (const line of lines) {
+        if (/^\s*```/.test(line)) {
+            if (inCode) {
+                html.push(
+                    `<pre><code>${escapeChatHtml(codeBuffer.join('\n'))}</code></pre>`
+                );
+                codeBuffer = [];
+                inCode = false;
+            } else {
+                flushList();
+                inCode = true;
+            }
+            continue;
+        }
+        if (inCode) {
+            codeBuffer.push(line);
+            continue;
+        }
+        if (/^###\s+/.test(line)) {
+            flushList();
+            html.push(`<h3>${renderInline(line.replace(/^###\s+/, ''))}</h3>`);
+        } else if (/^##\s+/.test(line)) {
+            flushList();
+            html.push(`<h2>${renderInline(line.replace(/^##\s+/, ''))}</h2>`);
+        } else if (/^#\s+/.test(line)) {
+            flushList();
+            html.push(`<h1>${renderInline(line.replace(/^#\s+/, ''))}</h1>`);
+        } else if (/^\s*[-*]\s+/.test(line)) {
+            listBuffer.push(
+                `<li>${renderInline(line.replace(/^\s*[-*]\s+/, ''))}</li>`
+            );
+        } else if (/^\s*>\s?/.test(line)) {
+            flushList();
+            html.push(
+                `<blockquote>${renderInline(
+                    line.replace(/^\s*>\s?/, '')
+                )}</blockquote>`
+            );
+        } else if (line.trim() === '') {
+            flushList();
+        } else {
+            flushList();
+            html.push(`<p>${renderInline(line)}</p>`);
+        }
+    }
+    if (inCode && codeBuffer.length) {
+        html.push(`<pre><code>${escapeChatHtml(codeBuffer.join('\n'))}</code></pre>`);
+    }
+    flushList();
+    return html.join('');
+}
+
+function MarkdownMessage({content}: {content: string}) {
+    const html = React.useMemo(() => renderChatMarkdown(content), [content]);
+    return (
+        <div
+            className="msg-content"
+            dangerouslySetInnerHTML={{__html: html}}
+        />
+    );
+}
+
 /** ? local-llm-engine `toolcall.think` ? thoughts ???? */
 function parseThoughtsFromLogLine(line: string): string | null {
     const lower = line.toLowerCase();
@@ -125,27 +224,46 @@ function parseThoughtsFromLogLine(line: string): string | null {
     return text.length > 0 ? text : null;
 }
 
-function DiagPanel({plan, infoLines}: {plan: string; infoLines: string[]}) {
+function DiagPanel({
+    plan,
+    infoLines,
+    progresses,
+}: {
+    plan: string;
+    infoLines: string[];
+    progresses: string[];
+}) {
     const hasPlan = plan.trim().length > 0;
     const hasInfo = infoLines.length > 0;
-    if (!hasPlan && !hasInfo) {
+    const hasProgress = progresses.length > 0;
+    if (!hasPlan && !hasInfo && !hasProgress) {
         return null;
     }
     return (
         <div className="chat-diag">
+            {hasProgress ? (
+                <div className="chat-progress">
+                    {progresses.map((step, i) => (
+                        <div className="chat-progress-step" key={i}>
+                            <span className="chat-progress-dot" />
+                            <span>{step}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
             {hasPlan ? (
-                <details className="chat-diag-plan">
+                <details className="chat-diag-section">
                     <summary>{'模型计划'}</summary>
                     <pre className="chat-diag-pre">{plan}</pre>
                 </details>
             ) : null}
             {hasInfo ? (
-                <div className="chat-diag-conn">
-                    <div className="chat-diag-conn-title">{'连接信息'}</div>
+                <details className="chat-diag-section chat-diag-conn">
+                    <summary>{'连接信息'}</summary>
                     <pre className="chat-diag-pre chat-diag-conn-pre">
                         {infoLines.join('\n')}
                     </pre>
-                </div>
+                </details>
             ) : null}
         </div>
     );
@@ -232,7 +350,31 @@ export default function Chat({
             }
 
             if (t === 'stream' && typeof msg.text === 'string') {
-                streamingAssistantRef.current += msg.text;
+                const chunks = msg.text.split('\n').map((s) => s.trim()).filter(Boolean);
+                const systemLines = chunks.filter((c) => /^\[(?:系统|system)\]/i.test(c));
+                const replyText = chunks.filter((c) => !/^\[(?:系统|system)\]/i.test(c)).join('\n');
+                if (systemLines.length) {
+                    const runId = runIdRef.current;
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.kind === 'diag' && m.runId === runId
+                                ? {
+                                      ...m,
+                                      progresses: [
+                                          ...m.progresses,
+                                          ...systemLines.map((s) =>
+                                              s.replace(/^\[(?:系统|system)\]\s*/i, '')
+                                          ),
+                                      ],
+                                  }
+                                : m
+                        )
+                    );
+                }
+                if (!replyText) {
+                    return;
+                }
+                streamingAssistantRef.current += replyText;
                 setMessages((prev) => {
                     const last = prev[prev.length - 1];
                     if (last?.kind === 'text' && last.role === 'assistant') {
@@ -242,13 +384,13 @@ export default function Chat({
                             {
                                 kind: 'text',
                                 role: 'assistant',
-                                content: last.content + msg.text,
+                                content: last.content + replyText,
                             },
                         ];
                     }
                     return [
                         ...prev,
-                        {kind: 'text', role: 'assistant', content: msg.text!},
+                        {kind: 'text', role: 'assistant', content: replyText},
                     ];
                 });
                 return;
@@ -493,6 +635,20 @@ export default function Chat({
         const userMsgCount = historyForApi.filter((m) => m.role === 'user').length;
         const isFirstMessage = userMsgCount === 0;
 
+        if (isFirstMessage && effectiveTaskId) {
+            // 首条消息立即可见的占位标题并持久化；模型提炼完成后由 task_title 覆盖。
+            const placeholder = text.replace(/\s+/g, ' ').trim().slice(0, 20);
+            if (placeholder) {
+                onTaskTitleUpdated?.(effectiveTaskId, placeholder);
+                void cloudApi
+                    .updateChatTaskTitle(effectiveTaskId, placeholder)
+                    .then(() => onTasksChanged?.())
+                    .catch(() => {
+                        /* 占位标题失败不阻塞对话，模型结果仍会写入 */
+                    });
+            }
+        }
+
         if (effectiveTaskId) {
             try {
                 await cloudApi.appendChatMessage(effectiveTaskId, 'user', text);
@@ -505,7 +661,7 @@ export default function Chat({
         setMessages((prev) => [
             ...prev,
             {kind: 'text', role: 'user', content: text},
-            {kind: 'diag', runId, plan: '', infoLines: []},
+            {kind: 'diag', runId, plan: '', infoLines: [], progresses: []},
         ]);
         setInput('');
         setBusy(true);
@@ -520,7 +676,7 @@ export default function Chat({
                 history: historyForApi,
                 interruptPrevious: busy,
                 authToken: authToken ?? undefined,
-                apiUrl: import.meta.env.VITE_YOLK_API_URL ?? 'http://localhost:8080',
+                apiUrl: CLOUD_API_BASE_URL,
                 logSessionId: effectiveSessionId ?? String(runId),
                 taskId: effectiveTaskId ?? undefined,
                 isFirstMessage,
@@ -572,7 +728,8 @@ export default function Chat({
                             !(
                                 m.kind === 'diag' &&
                                 !m.plan &&
-                                m.infoLines.length === 0
+                                m.infoLines.length === 0 &&
+                                m.progresses.length === 0
                             )
                     )
                 );
@@ -722,19 +879,33 @@ export default function Chat({
                 ) : null}
                 {messages.map((m, i) => {
                     if (m.kind === 'diag') {
-                        return <DiagPanel key={i} plan={m.plan} infoLines={m.infoLines} />;
+                        return (
+                            <DiagPanel
+                                key={i}
+                                plan={m.plan}
+                                infoLines={m.infoLines}
+                                progresses={m.progresses}
+                            />
+                        );
                     }
+                    const isUser = m.role === 'user';
                     return (
                         <div
                             key={i}
-                            className={`msg ${
-                                m.role === 'user' ? 'msg-user' : 'msg-ai'
-                            }`}
+                            className={
+                                isUser ? 'chat-turn chat-turn-user' : 'chat-turn'
+                            }
                         >
-                            <div className="msg-role">
-                                {m.role === 'user' ? '你' : 'AI'}
+                            <div className="chat-turn-role">
+                                {isUser ? '你' : 'AI'}
                             </div>
-                            <div>{m.content}</div>
+                            <div className="chat-turn-body">
+                                {isUser ? (
+                                    <div className="msg-content">{m.content}</div>
+                                ) : (
+                                    <MarkdownMessage content={m.content} />
+                                )}
+                            </div>
                         </div>
                     );
                 })}
