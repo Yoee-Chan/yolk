@@ -6,6 +6,7 @@ import {
     type AuthResult,
     type UserProfile,
 } from '../api/cloudApi';
+import {AUTH_ENABLED} from '../config/featureFlags';
 
 type AuthContextValue = {
     user: UserProfile | null;
@@ -28,7 +29,7 @@ function applyAuth(setUser: (u: UserProfile | null) => void, result: AuthResult)
 
 export function AuthProvider({children}: {children: React.ReactNode}) {
     const [user, setUser] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(AUTH_ENABLED);
 
     const refreshUser = useCallback(async () => {
         const token = getStoredToken();
@@ -41,6 +42,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     }, []);
 
     useEffect(() => {
+        if (!AUTH_ENABLED) {
+            // 关闭登录入口时直接以访客身份启动，避免旧 token 校验阻塞使用
+            setLoading(false);
+            return;
+        }
         refreshUser()
             .catch(() => {
                 setStoredToken(null);

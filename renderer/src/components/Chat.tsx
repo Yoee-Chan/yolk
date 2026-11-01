@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {CLOUD_API_BASE_URL, cloudApi, getStoredToken} from '../api/cloudApi';
 import {useAuth} from '../context/AuthContext';
 import AuthModal from './auth/AuthModal';
+import {AUTH_ENABLED} from '../config/featureFlags';
 import '../css/Chat.css';
 
 type PendingHumanInput = {
@@ -51,8 +52,9 @@ export interface ChatProps {
 const WELCOME_TEXT =
     '在下方输入问题后，系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具。取消则不会执行任何操作。首次发送消息将自动在左侧创建任务记录。';
 
-const LOCAL_WELCOME_TEXT =
-    '在下方输入问题后点击发送，请先登录或注册。登录后系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具，并可保存任务历史。';
+const LOCAL_WELCOME_TEXT = AUTH_ENABLED
+    ? '在下方输入问题后点击发送，请先登录或注册。登录后系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具，并可保存任务历史。'
+    : '在下方输入问题后点击发送，系统会先请模型整理「执行计划、所需权限、将使用的程序」并请你确认；确认后才会启动 Agent 与工具。当前为本地模式，对话记录不会上传云端。';
 
 const PROTOCOL_TYPES = new Set([
     'result',
@@ -588,7 +590,7 @@ export default function Chat({
             return;
         }
 
-        if (!user) {
+        if (AUTH_ENABLED && !user) {
             setAuthModalOpen(true);
             return;
         }
@@ -748,10 +750,12 @@ export default function Chat({
 
     return (
         <div className="chat-page">
-            <AuthModal
-                open={authModalOpen}
-                onClose={() => setAuthModalOpen(false)}
-            />
+            {AUTH_ENABLED ? (
+                <AuthModal
+                    open={authModalOpen}
+                    onClose={() => setAuthModalOpen(false)}
+                />
+            ) : null}
             {pendingPlanConfirm ? (
                 <div
                     className="chat-human-overlay"
@@ -872,9 +876,9 @@ export default function Chat({
             <div className="chat-body">
                 {needsTaskSelection ? (
                     <div className="chat-empty-hint">
-                        {
-                            '请先登录，或在左侧点击「创建新任务」、选择一条历史任务后再开始对话。'
-                        }
+                        {AUTH_ENABLED
+                            ? '请先登录，或在左侧点击「创建新任务」、选择一条历史任务后再开始对话。'
+                            : '请在左侧点击「创建新任务」，或在已登录时选择一条历史任务后再开始对话。'}
                     </div>
                 ) : null}
                 {messages.map((m, i) => {
@@ -916,7 +920,7 @@ export default function Chat({
                         placeholder={
                             needsTaskSelection
                                 ? '请先创建或选择任务…'
-                                : !user
+                                : AUTH_ENABLED && !user
                                   ? '输入问题后发送（需先登录）…'
                                   : '输入你的问题...'
                         }
