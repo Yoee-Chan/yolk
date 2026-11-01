@@ -11,15 +11,17 @@ import TokenMange from '../../components/TokenMange';
 import Setting from '../../components/Setting';
 import Connectors from '../../components/Connectors';
 import WeChatArticleComposer from '../../components/WeChatArticleComposer';
+import VirtualUniverse from '../../components/virtual-universe/VirtualUniverse';
 import UserProfileBar from '../../components/auth/UserProfileBar';
 import {cloudApi, type ChatTaskSummary} from '../../api/cloudApi';
 import {useAuth} from '../../context/AuthContext';
-import {SHOW_PIPELINE_TASK, SHOW_TOKEN_MANAGE} from '../../config/featureFlags';
+import {SHOW_PIPELINE_TASK, SHOW_TOKEN_MANAGE, AUTH_ENABLED} from '../../config/featureFlags';
 
 const PageMap = {
     chat: Chat,
     newTask: NewTask,
     wechatArticle: WeChatArticleComposer,
+    virtualUniverse: VirtualUniverse,
     pipelineTask: PipelineTask,
     tokenMange: TokenMange,
     skill: Found,
@@ -92,14 +94,24 @@ export default function MainPage() {
     }, [user, activeTaskId, sessionId]);
 
     const openNewTask = useCallback(async () => {
-        if (!user) {
+        if (user) {
+            const task = await cloudApi.createChatTask();
+            setTasks((prev) => [task, ...prev]);
+            setActiveTaskId(task.id);
+            setSessionId(task.sessionId);
+            setRestoredMessages([]);
+            setShowWelcome(true);
+            setActiveKey('chat');
+            setChatKey((k) => k + 1);
             return;
         }
-        const task = await cloudApi.createChatTask();
-        setTasks((prev) => [task, ...prev]);
-        setActiveTaskId(task.id);
-        setSessionId(task.sessionId);
-        setRestoredMessages([]);
+        if (AUTH_ENABLED) {
+            return;
+        }
+        // 未开启登录：本地模式直接重置当前会话
+        setActiveTaskId(null);
+        setSessionId(null);
+        setRestoredMessages(null);
         setShowWelcome(true);
         setActiveKey('chat');
         setChatKey((k) => k + 1);
@@ -185,17 +197,19 @@ export default function MainPage() {
                     onNewTask={openNewTask}
                     onTogglePin={user ? handleTogglePin : undefined}
                     onDelete={user ? handleDeleteTask : undefined}
-                    disabled={!user || tasksLoading}
+                    disabled={AUTH_ENABLED ? !user || tasksLoading : tasksLoading}
                 />
-                <div className="sidebar-footer">
-                    <UserProfileBar
-                        onUpgrade={
-                            SHOW_TOKEN_MANAGE
-                                ? () => setActiveKey('tokenMange')
-                                : undefined
-                        }
-                    />
-                </div>
+                {AUTH_ENABLED ? (
+                    <div className="sidebar-footer">
+                        <UserProfileBar
+                            onUpgrade={
+                                SHOW_TOKEN_MANAGE
+                                    ? () => setActiveKey('tokenMange')
+                                    : undefined
+                            }
+                        />
+                    </div>
+                ) : null}
             </aside> : null}
             <div className="main-panel">
                 {activeKey === 'chat' ? (

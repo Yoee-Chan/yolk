@@ -8,6 +8,7 @@ import {
     LinkOutlined,
     LayoutOutlined,
     WechatOutlined,
+    GlobalOutlined,
 } from '@ant-design/icons';
 import {SHOW_PIPELINE_TASK, SHOW_TOKEN_MANAGE} from '../config/featureFlags';
 
@@ -21,6 +22,7 @@ type SettingProps = {
 const items = [
     {key: 'chat', icon: <CommentOutlined/>, label: '新任务编排'},
     {key: 'wechatArticle', icon: <WechatOutlined/>, label: '公众号编排'},
+    {key: 'virtualUniverse', icon: <GlobalOutlined/>, label: '虚拟宇宙'},
     {key: 'pipelineTask', icon: <ApiOutlined/>, label: '流水线任务'},
     {key: 'tokenMange', icon: <MenuOutlined/>, label: '词元流量管理'},
     {key: 'skill', icon: <SearchOutlined/>, label: '能力扩展'},
