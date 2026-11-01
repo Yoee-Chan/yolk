@@ -13,3 +13,7 @@ agent_tools.spec
 /agent-controller/build/
 local-llm-engine/logs/
 /.idea/
+/src-tauri/binaries/
+/src-tauri/gen/
+/src-tauri/target/
+/src-tauri/capabilities/

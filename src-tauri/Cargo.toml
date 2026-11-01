@@ -1,0 +1,26 @@
+[package]
+name = "yolk"
+version = "1.0.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+chrono = "0.4"
+# 虚拟宇宙：摄像头采集（nokhwa 使用各平台原生后端，Windows 为 Media Foundation）。
+# 解码走 nokhwa 自带的 mozjpeg / YUYV 转换，直出 RGB24 并复用缓冲——
+# 旧版经 image 解码成 RGBA 的逐帧分配路径已被 vu_player.rs 的零分配管线替代。
+nokhwa = { version = "0.10", default-features = false, features = ["input-native", "decoding"] }
+
+# 虚拟宇宙播放器：原生全屏窗口 + 直接内存呈现（0 编解码、0 IPC 往返）。
+# winit 负责窗口/事件循环，softbuffer 负责把每帧画面直接 blit 到窗口。
+winit = "0.30"
+softbuffer = "0.4"

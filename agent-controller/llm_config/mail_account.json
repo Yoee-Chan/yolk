@@ -1,0 +1,10 @@
+{
+  "_comment": "流水线任务读取邮件附件用的 IMAP 账号。只有本机没有经典 Outlook 桌面版时才会用到。多数邮箱（QQ/163/Outlook/企业邮箱）需要在网页端开启 IMAP 并生成「应用专用密码」，不要填登录密码。",
+  "imap_host": "",
+  "imap_port": 993,
+  "use_ssl": true,
+  "username": "",
+  "password": "",
+  "mailbox": "INBOX",
+  "sender_contains": ""
+}

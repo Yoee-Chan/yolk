@@ -116,6 +116,13 @@ def _apply_run_env(payload: dict) -> None:
     if isinstance(log_session_id, str) and log_session_id.strip():
         os.environ["YOLK_LOG_SESSION_ID"] = log_session_id.strip()
 
+    # 流水线「立即执行」不做人工 review：工具确认、ask_human 全部自动放行，
+    # 否则 Agent 会停在 need_input 上等待一个永远不会到来的回复。
+    if payload.get("pipelineId"):
+        os.environ["YOLK_PIPELINE_MODE"] = "1"
+    else:
+        os.environ.pop("YOLK_PIPELINE_MODE", None)
+
 
 def read_run_request() -> Optional[Tuple[str, list, dict]]:
     """从路由队列取一条请求。stdin 关闭时返回 None。"""
@@ -245,6 +252,21 @@ async def _drain_background_tasks(timeout: float = 15.0) -> None:
         except Exception:
             logging.exception("等待后台任务失败")
             return
+
+
+def _pipeline_mode_block() -> str:
+    """流水线自动执行时附加的指令：不做人工 review，阶段失败要明确回报原因。"""
+    if os.environ.get("YOLK_PIPELINE_MODE") != "1":
+        return ""
+    return """
+---
+【流水线模式】本次是用户点击「立即执行」后自动运行的流水线，全部阶段都已授权：
+- 不要调用 `ask_human`，不要向用户询问确认，也不要等待任何人工输入。
+- 每完成一个阶段，单独输出一行：`[阶段完成] <阶段名>`。
+- 某个阶段失败（工具报错、数据缺失、无法继续等），单独输出一行：`[阶段失败] <阶段名>：<失败原因>`，然后立即停止，不要继续执行后面的阶段。
+- 全部阶段完成后输出 `[流水线完成]`。
+---
+"""
 
 
 def _format_chat_history(history: list) -> str:
@@ -418,7 +440,19 @@ async def main(
     from app.plan_policy import plan_needs_user_confirm, user_task_is_chat_only
 
     approved_block = ""
-    if user_task_is_chat_only(user_task):
+    if run_meta.get("skipPlan"):
+        # 流水线「立即执行」：用户点击按钮即视为已确认，跳过规划与二次确认，直接执行。
+        print(
+            json.dumps(
+                {
+                    "type": "stream",
+                    "text": "[系统] 流水线已确认，直接启动 Agent 执行…\n",
+                },
+                ensure_ascii=False,
+            )
+        )
+        sys.stdout.flush()
+    elif user_task_is_chat_only(user_task):
         print(
             json.dumps(
                 {
@@ -517,6 +551,7 @@ async def main(
         base
         + history_block
         + approved_block
+        + _pipeline_mode_block()
         + "\nCurrent user message:\n"
         + user_task
     )

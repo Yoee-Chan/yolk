@@ -11,6 +11,7 @@ import {
     Steps,
     TimePicker,
     Typography,
+    message,
 } from 'antd';
 import {DeleteOutlined, PlusOutlined} from '@ant-design/icons';
 import dayjs, {type Dayjs} from 'dayjs';
@@ -52,13 +53,21 @@ const WEEKDAY_OPTIONS = [
     {value: 0, label: '周日'},
 ];
 
+/** `HH:mm` → 当天的 dayjs；没有注册 customParseFormat 插件，直接 dayjs('08:00') 会得到 Invalid Date。 */
+function parseHHmm(value?: string): Dayjs | undefined {
+    if (!value) return undefined;
+    const [hour, minute] = value.split(':').map((part) => Number.parseInt(part, 10));
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return undefined;
+    return dayjs().hour(hour).minute(minute).second(0).millisecond(0);
+}
+
 function toFormValues(def: PipelineDefinition | null): DefinitionFormValues {
     if (!def) {
         return {
             name: '',
             description: '',
             scheduleType: 'daily',
-            scheduleTime: dayjs('08:00', 'HH:mm'),
+            scheduleTime: parseHHmm('08:00'),
             stages: [{name: '', description: '', permissions: []}],
         };
     }
@@ -66,7 +75,7 @@ function toFormValues(def: PipelineDefinition | null): DefinitionFormValues {
         name: def.name,
         description: def.description,
         scheduleType: def.schedule.type,
-        scheduleTime: def.schedule.time ? dayjs(def.schedule.time, 'HH:mm') : undefined,
+        scheduleTime: parseHHmm(def.schedule.time),
         scheduleDatetime: def.schedule.datetime ? dayjs(def.schedule.datetime) : undefined,
         weekdays: def.schedule.weekdays,
         stages: def.stages.map((s) => ({
@@ -84,6 +93,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
 
     useEffect(() => {
         if (open) {
+            form.resetFields();
             form.setFieldsValue(toFormValues(editing));
             setStep(0);
         }
@@ -105,7 +115,13 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
         }
         try {
             const values = await form.validateFields();
-            onSubmit(values);
+            const stages = (values.stages ?? []).filter((s) => (s?.name ?? '').trim() !== '');
+            if (stages.length === 0) {
+                message.error('至少需要配置一个阶段');
+                setStep(1);
+                return;
+            }
+            onSubmit({...values, stages});
         } catch {
             /* validation shown */
         }
@@ -150,9 +166,10 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                 {'开始设定执行时间 → 过程可增加多个阶段并配置权限 → 执行结果为完成、错误或已弃用'}
             </p>
 
-            <Form form={form} layout="vertical" preserve={false}>
-                {step === 0 && (
-                    <>
+            <Form form={form} layout="vertical">
+                {/* 三个步骤都保持挂载，仅切换显示：否则在确认步骤提交时字段已卸载，
+                    取值会变成空对象，导致「创建」按钮点了没有任何反应。 */}
+                <section style={{display: step === 0 ? undefined : 'none'}}>
                         <p className="form-section-title">{'基本信息'}</p>
                         <Form.Item
                             name="name"
@@ -214,11 +231,9 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                 <Checkbox.Group options={WEEKDAY_OPTIONS}/>
                             </Form.Item>
                         )}
-                    </>
-                )}
+                </section>
 
-                {step === 1 && (
-                    <>
+                <section style={{display: step === 1 ? undefined : 'none'}}>
                         <p className="form-section-title">{'过程 · 阶段与权限'}</p>
                         <Form.List
                             name="stages"
@@ -295,10 +310,9 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                 </>
                             )}
                         </Form.List>
-                    </>
-                )}
+                </section>
 
-                {step === 2 && (
+                <section style={{display: step === 2 ? undefined : 'none'}}>
                     <Form.Item shouldUpdate noStyle>
                         {() => {
                             const v = form.getFieldsValue();
@@ -317,8 +331,9 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                                         <TagLike color="blue">
                                             {'开始 · '}
                                             {scheduleTypeLabel(v.scheduleType)}
-                                            {v.scheduleTime && ` · ${v.scheduleTime.format('HH:mm')}`}
-                                            {v.scheduleDatetime &&
+                                            {v.scheduleTime?.isValid() &&
+                                                ` · ${v.scheduleTime.format('HH:mm')}`}
+                                            {v.scheduleDatetime?.isValid() &&
                                                 ` · ${v.scheduleDatetime.format('YYYY-MM-DD HH:mm')}`}
                                         </TagLike>
                                     </p>
@@ -352,7 +367,7 @@ export default function PipelineDefinitionForm({open, editing, onCancel, onSubmi
                             );
                         }}
                     </Form.Item>
-                )}
+                </section>
             </Form>
         </Modal>
     );
@@ -380,31 +395,37 @@ export function buildDefinitionFromForm(
     values: DefinitionFormValues,
     existing?: PipelineDefinition,
 ): PipelineDefinition {
-    const stages: ProcessStage[] = values.stages.map((s) => ({
-        id: newId('stage'),
-        name: s.name,
-        description: s.description,
-        permissions: s.permissions ?? [],
-    }));
+    const stages: ProcessStage[] = (values.stages ?? [])
+        .filter((s) => (s?.name ?? '').trim() !== '')
+        .map((s) => ({
+            id: newId('stage'),
+            name: s.name.trim(),
+            description: s.description,
+            permissions: s.permissions ?? [],
+        }));
+
+    const timeValue = values.scheduleTime;
+    const datetimeValue = values.scheduleDatetime;
 
     return {
         id: existing?.id ?? newId('def'),
-        name: values.name,
+        name: values.name?.trim() ?? '',
         description: values.description ?? '',
         enabled: existing?.enabled ?? true,
         schedule: {
             type: values.scheduleType,
             time:
-                values.scheduleType !== 'once' && values.scheduleTime
-                    ? values.scheduleTime.format('HH:mm')
+                values.scheduleType !== 'once' && timeValue?.isValid()
+                    ? timeValue.format('HH:mm')
                     : undefined,
             datetime:
-                values.scheduleType === 'once' && values.scheduleDatetime
-                    ? values.scheduleDatetime.toISOString()
+                values.scheduleType === 'once' && datetimeValue?.isValid()
+                    ? datetimeValue.toISOString()
                     : undefined,
             weekdays: values.scheduleType === 'weekly' ? values.weekdays : undefined,
         },
         stages,
         createdAt: existing?.createdAt ?? new Date().toISOString(),
+        agentPrompt: existing?.agentPrompt,
     };
 }

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Yolk助手",
+  "version": "1.0.0",
+  "identifier": "com.yolk.assistant",
+  "build": {
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../renderer/dist",
+    "beforeDevCommand": "npm run dev:renderer",
+    "beforeBuildCommand": "npm run build:renderer"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Yolk助手",
+        "width": 1200,
+        "height": 800,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "../renderer/public/yolk-logo.ico"
+    ],
+    "resources": [
+      "binaries/*",
+      "../renderer/public/yolk-logo.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "../renderer/public/yolk-logo.ico"
+      }
+    }
+  }
+}
