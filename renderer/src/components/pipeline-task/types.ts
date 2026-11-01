@@ -27,6 +27,8 @@ export interface PipelineDefinition {
     schedule: PipelineSchedule;
     stages: ProcessStage[];
     createdAt: string;
+    /** 交给 Agent 的具体执行说明（自然语言），「立即执行」时随阶段一起下发给 Agent */
+    agentPrompt?: string;
 }
 
 export type StageRunStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
@@ -34,6 +36,8 @@ export type StageRunStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped
 export interface StageRunResult {
     stageId: string;
     status: StageRunStatus;
+    /** 该阶段失败时的原因（展示在执行详情里） */
+    errorMessage?: string;
 }
 
 export interface PipelineExecution {
@@ -46,6 +50,18 @@ export interface PipelineExecution {
     finishedAt?: string;
     errorMessage?: string;
     stageResults: StageRunResult[];
+    /** Agent 流式输出（按行累积），用于在执行详情里回看 */
+    logs?: string[];
+    /** Agent 报告已保存到本机的文件路径 */
+    artifacts?: string[];
+}
+
+/** 落盘结构：`<workspace>/流水线任务/pipelines.json` */
+export interface PipelineStore {
+    version: number;
+    updatedAt: string;
+    definitions: PipelineDefinition[];
+    executions: PipelineExecution[];
 }
 
 export const PERMISSION_OPTIONS = [

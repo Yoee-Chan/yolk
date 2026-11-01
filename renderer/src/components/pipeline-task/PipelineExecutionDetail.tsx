@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, Steps, Tag} from 'antd';
+import {Alert, Collapse, Empty, Steps, Tag, Typography} from 'antd';
 import type {PipelineDefinition, PipelineExecution, StageRunStatus} from './types';
 import {PERMISSION_OPTIONS} from './types';
 
@@ -42,10 +42,22 @@ export default function PipelineExecutionDetail({execution, definition}: Props) 
                             ))}
                         </span>
                     )}
+                    {status === 'error' && (
+                        <p style={{margin: '6px 0 0', color: '#cf1322'}}>
+                            {'失败原因：'}
+                            {run?.errorMessage || '未知原因'}
+                        </p>
+                    )}
+                    {status === 'skipped' && (
+                        <p style={{margin: '6px 0 0', color: '#8c8c8c'}}>{'已跳过'}</p>
+                    )}
                 </>
             ),
         };
     });
+
+    const artifacts = execution.artifacts ?? [];
+    const logs = execution.logs ?? [];
 
     return (
         <section className="stage-timeline">
@@ -55,6 +67,7 @@ export default function PipelineExecutionDetail({execution, definition}: Props) 
                 current={execution.currentStageIndex}
                 items={items}
             />
+
             {execution.errorMessage && (
                 <Alert
                     style={{marginTop: 12}}
@@ -64,6 +77,43 @@ export default function PipelineExecutionDetail({execution, definition}: Props) 
                     description={execution.errorMessage}
                 />
             )}
+
+            <section style={{marginTop: 12}}>
+                <p className="form-section-title">{'已保存到本机的文件'}</p>
+                {artifacts.length === 0 ? (
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={'暂无产物（Agent 尚未报告文件路径）'}
+                    />
+                ) : (
+                    <ul className="artifact-list">
+                        {artifacts.map((path) => (
+                            <li key={path}>
+                                <Typography.Text copyable={{text: path}} style={{fontSize: 13}}>
+                                    {path}
+                                </Typography.Text>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
+            <Collapse
+                style={{marginTop: 12}}
+                size="small"
+                items={[
+                    {
+                        key: 'logs',
+                        label: `Agent 执行日志 (${logs.length} 行)`,
+                        children:
+                            logs.length === 0 ? (
+                                <Typography.Text type="secondary">{'暂无日志'}</Typography.Text>
+                            ) : (
+                                <pre className="agent-log">{logs.join('\n')}</pre>
+                            ),
+                    },
+                ]}
+            />
         </section>
     );
 }

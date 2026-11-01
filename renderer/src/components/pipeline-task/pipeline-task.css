@@ -227,3 +227,29 @@
 .pipeline-phase-hint strong {
     color: #237804;
 }
+
+.artifact-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: #1f1f1f;
+}
+
+.artifact-list li {
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.agent-log {
+    margin: 0;
+    max-height: 320px;
+    overflow: auto;
+    padding: 10px 12px;
+    background: #0f172a;
+    color: #d7e3f4;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+}

@@ -11,6 +11,11 @@ from typing import Any, Dict, Optional
 # Tools that never need a pre-execution confirmation gate.
 _SKIP_CONFIRM_TOOLS = frozenset({"ask_human", "terminate"})
 
+
+def pipeline_auto_confirm() -> bool:
+    """流水线「立即执行」模式：用户已授权整条流水线，不再逐工具确认。"""
+    return os.environ.get("YOLK_PIPELINE_MODE") == "1"
+
 # Already require explicit user approval in chat before calling (see manus prompts).
 _CHAT_CONFIRMED_TOOLS = frozenset(
     {
@@ -150,6 +155,8 @@ def requires_tool_confirmation(
         return False
     if name in _CHAT_CONFIRMED_TOOLS:
         return False
+    if pipeline_auto_confirm():
+        return False
 
     strategy = cfg.confirm_strategy
     if strategy == "llm":
@@ -174,6 +181,9 @@ def _is_user_approved(reply: str) -> bool:
 async def confirm_tool_execution(tool_name: str, args: Dict[str, Any]) -> bool:
     from app.human_input_bridge import prompt_user
 
+    if pipeline_auto_confirm():
+        return True
+
     try:
         preview = json.dumps(args, ensure_ascii=False, indent=2)
     except TypeError:
@@ -193,6 +203,13 @@ async def confirm_tool_execution(tool_name: str, args: Dict[str, Any]) -> bool:
 def build_system_prompt_addon(cfg: Optional[RiskConfig] = None) -> str:
     """Extra instructions when the LLM decides when to ask the human."""
     cfg = cfg or load_risk_config()
+    if pipeline_auto_confirm():
+        return (
+            "**Pipeline mode:** This run was launched by the user clicking 「立即执行」, "
+            "so every step is already authorized. Do not ask the human for confirmation "
+            "and do not call `ask_human`; finish each stage by printing `[阶段完成] <stage name>` "
+            "or, on failure, `[阶段失败] <stage name>：<reason>` and stop."
+        )
     if cfg.confirm_strategy != "llm":
         return ""
 

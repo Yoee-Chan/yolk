@@ -1,0 +1,519 @@
+/* 虚拟宇宙 — 页面样式。浅色应用壳 + 深色采集舞台，贴合“宇宙”主题。 */
+
+.vu-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #f4f7fb 0%, #e9eff5 100%);
+    padding: 24px 28px 28px;
+    overflow: auto;
+    box-sizing: border-box;
+}
+
+.vu-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.vu-header__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.vu-header__logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #2563eb 100%);
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+}
+
+.vu-header__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+}
+
+.vu-header__subtitle {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.vu-header__right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vu-stat {
+    font-size: 12px;
+    color: #475569;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vu-header__btn {
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
+.vu-header__btn:hover {
+    border-color: #4f46e5 !important;
+    color: #4f46e5 !important;
+}
+
+.vu-body {
+    display: flex;
+    gap: 18px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* ---------- 舞台 ---------- */
+
+.vu-stage {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vu-viewport {
+    position: relative;
+    flex: 1;
+    min-height: 380px;
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+        radial-gradient(1200px 600px at 70% -10%, rgba(99, 102, 241, 0.25), transparent 60%),
+        radial-gradient(900px 500px at 10% 110%, rgba(37, 99, 235, 0.22), transparent 55%),
+        #0b1020;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
+}
+
+.vu-viewport__canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.vu-viewport__overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.vu-viewport__overlay .vu-empty {
+    pointer-events: auto;
+}
+
+.vu-hud .vu-corner {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border: 2px solid rgba(129, 140, 248, 0.9);
+}
+
+.vu-corner--tl { top: 16px; left: 16px; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+.vu-corner--tr { top: 16px; right: 16px; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+.vu-corner--bl { bottom: 16px; left: 16px; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+.vu-corner--br { bottom: 16px; right: 16px; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+
+.vu-scanline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -90px;
+    height: 90px;
+    background: linear-gradient(180deg, transparent, rgba(129, 140, 248, 0.18) 60%, rgba(129, 140, 248, 0.32));
+    animation: vu-scan 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes vu-scan {
+    from { top: -90px; }
+    to { top: 100%; }
+}
+
+.vu-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #cbd5e1;
+    background: rgba(11, 16, 32, 0.55);
+    backdrop-filter: blur(2px);
+    padding: 24px;
+    text-align: center;
+}
+
+.vu-empty__icon {
+    font-size: 40px;
+    color: #818cf8;
+    opacity: 0.9;
+}
+
+.vu-empty__text {
+    margin: 0;
+    font-size: 15px;
+}
+
+.vu-empty__text--error {
+    color: #fca5a5;
+    max-width: 420px;
+    word-break: break-word;
+}
+
+.vu-empty__sub {
+    margin: 0;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.vu-empty__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* 全屏运行中状态卡：主窗口不再逐帧绘制，只提示去全屏窗口观看。 */
+.vu-live {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #cbd5e1;
+    background: rgba(11, 16, 32, 0.55);
+    backdrop-filter: blur(2px);
+    padding: 24px;
+    text-align: center;
+}
+
+.vu-live__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #a5f3c0;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    border-radius: 999px;
+    padding: 5px 14px;
+}
+
+.vu-live__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+    animation: vu-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes vu-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+.vu-live__title {
+    margin: 4px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.vu-live__sub {
+    margin: 0;
+    font-size: 12.5px;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+
+.vu-live__hint {
+    margin: 0;
+    font-size: 12.5px;
+    color: #cbd5e1;
+}
+
+.vu-live__hint kbd {
+    font-family: inherit;
+    font-size: 11px;
+    background: rgba(148, 163, 184, 0.2);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    padding: 1px 7px;
+}
+
+.vu-live__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.vu-stage__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: #475569;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 14px;
+}
+
+.vu-stage__bar-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #6d28d9;
+}
+
+/* ---------- 侧栏 ---------- */
+
+.vu-side {
+    width: 300px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.vu-card {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+}
+
+.vu-card__title {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.vu-card__text {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #475569;
+}
+
+.vu-card--accent {
+    border-color: #c7d2fe;
+    background: linear-gradient(180deg, #eef2ff 0%, rgba(255, 255, 255, 0.85) 100%);
+}
+
+.vu-card--accent .vu-card__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #4338ca;
+}
+
+.vu-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vu-steps__item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    opacity: 0.55;
+}
+
+.vu-steps__item--active {
+    opacity: 1;
+}
+
+.vu-steps__index {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+
+.vu-steps__item--active .vu-steps__index {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+}
+
+.vu-steps__name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.vu-steps__desc {
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #64748b;
+}
+
+/* ---------- 摄像头选择弹框 ---------- */
+
+.vu-picker__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.vu-picker__hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #475569;
+}
+
+.vu-picker__alert {
+    margin-bottom: 12px;
+}
+
+.vu-picker__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow: auto;
+}
+
+.vu-device-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.vu-device-option:hover {
+    border-color: #a5b4fc;
+}
+
+.vu-device-option--active {
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+
+.vu-device-option__icon {
+    font-size: 20px;
+    color: #6366f1;
+    flex-shrink: 0;
+}
+
+.vu-device-option__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vu-device-option__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vu-device-option__desc {
+    font-size: 12px;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vu-picker__loading,
+.vu-picker__empty {
+    padding: 18px 0 6px;
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.vu-picker__refresh {
+    margin-top: 12px;
+    border: none;
+    background: none;
+    color: #4f46e5;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.vu-picker__refresh:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 960px) {
+    .vu-body {
+        flex-direction: column;
+    }
+
+    .vu-side {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .vu-viewport {
+        min-height: 320px;
+    }
+}

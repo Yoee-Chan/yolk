@@ -16,6 +16,7 @@ from app.tool.jira_create_issue import JiraCreateIssue
 from app.tool.wechat_draft_article import WeChatDraftArticle
 from app.tool.wechat_publish_article import WeChatPublishArticle
 from app.tool.open_outlook_email import OpenOutlookEmail
+from app.tool.outlook_save_attachment import SaveOutlookAttachment
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 
@@ -45,6 +46,7 @@ class Manus(ToolCallAgent):
             BrowserUseTool(),
             StrReplaceEditor(),
             OpenOutlookEmail(),
+            SaveOutlookAttachment(),
             JiraCreateIssue(),
             WeChatDraftArticle(),
             WeChatPublishArticle(),
